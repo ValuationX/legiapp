@@ -4,10 +4,11 @@
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm install --include=dev",
   "functions": {
-    "api/index.ts": { "maxDuration": 15 }
+    "api/server.ts": { "maxDuration": 15 }
   },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api/server" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
