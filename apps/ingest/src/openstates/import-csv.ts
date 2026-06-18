@@ -51,57 +51,69 @@ export async function importBillsFromCsv(
       console.warn(`  ! missing ${stateDir}`);
       continue;
     }
-    const session = readdirSync(stateDir).find((s) => /^\d{4}-\d{4}$/.test(s));
-    if (!session || Number.parseInt(session.slice(0, 4), 10) < MIN_SESSION_YEAR) {
-      console.log(`  • skip ${top} (session ${session ?? '?'} < ${MIN_SESSION_YEAR})`);
+    // Each <ST>/<session>/ folder that actually has a bills CSV. Session names may be
+    // year-pairs ("2023-2024", NY/MI) or not (IL "103rd", OH "135th"); skip a session
+    // only when its name carries a 4-digit year older than MIN_SESSION_YEAR.
+    const sessions = readdirSync(stateDir).filter((s) =>
+      existsSync(resolve(stateDir, s, `${st.code}_${s}_bills.csv`)),
+    );
+    if (!sessions.length) {
+      console.warn(`  ! no <session>/${st.code}_<session>_bills.csv under ${stateDir}`);
       continue;
     }
-    const dir = resolve(stateDir, session);
-    const pfx = `${st.code}_${session}_`;
-
-    for (const r of readCsv(resolve(dir, `${pfx}bills.csv`))) {
-      if (!r.id || !r.identifier) continue;
-      bills.set(r.id, {
-        identifier: r.identifier,
-        title: r.title ?? '',
-        session,
-        chamber:
-          r.organization_classification === 'lower'
-            ? 'assembly'
-            : r.organization_classification === 'upper'
-              ? 'senate'
-              : null,
-        abstract: null,
-        sponsors: [],
-        firstDate: null,
-        lastDate: null,
-        lastDesc: null,
-        regions: [],
-      });
-    }
-    for (const a of readCsv(resolve(dir, `${pfx}bill_abstracts.csv`))) {
-      const b = bills.get(a.bill_id);
-      if (b && !b.abstract) b.abstract = a.abstract ?? null;
-    }
-    for (const s of readCsv(resolve(dir, `${pfx}bill_sponsorships.csv`))) {
-      const b = bills.get(s.bill_id);
-      if (!b) continue;
-      b.sponsors.push({
-        name: s.name ?? '',
-        personId: (s.person_id ?? '').split('/').pop() ?? '',
-        primary: String(s.primary).toLowerCase() === 'true',
-      });
-    }
-    for (const ac of readCsv(resolve(dir, `${pfx}bill_actions.csv`))) {
-      const b = bills.get(ac.bill_id);
-      if (!b || !ac.date) continue;
-      if (!b.firstDate || ac.date < b.firstDate) b.firstDate = ac.date;
-      if (!b.lastDate || ac.date > b.lastDate) {
-        b.lastDate = ac.date;
-        b.lastDesc = ac.description ?? null;
+    for (const session of sessions) {
+      const yr = session.match(/(\d{4})/)?.[1];
+      if (yr && Number.parseInt(yr, 10) < MIN_SESSION_YEAR) {
+        console.log(`  • skip ${session} (< ${MIN_SESSION_YEAR})`);
+        continue;
       }
+      const dir = resolve(stateDir, session);
+      const pfx = `${st.code}_${session}_`;
+
+      for (const r of readCsv(resolve(dir, `${pfx}bills.csv`))) {
+        if (!r.id || !r.identifier) continue;
+        bills.set(r.id, {
+          identifier: r.identifier,
+          title: r.title ?? '',
+          session,
+          chamber:
+            r.organization_classification === 'lower'
+              ? 'assembly'
+              : r.organization_classification === 'upper'
+                ? 'senate'
+                : null,
+          abstract: null,
+          sponsors: [],
+          firstDate: null,
+          lastDate: null,
+          lastDesc: null,
+          regions: [],
+        });
+      }
+      for (const a of readCsv(resolve(dir, `${pfx}bill_abstracts.csv`))) {
+        const b = bills.get(a.bill_id);
+        if (b && !b.abstract) b.abstract = a.abstract ?? null;
+      }
+      for (const s of readCsv(resolve(dir, `${pfx}bill_sponsorships.csv`))) {
+        const b = bills.get(s.bill_id);
+        if (!b) continue;
+        b.sponsors.push({
+          name: s.name ?? '',
+          personId: (s.person_id ?? '').split('/').pop() ?? '',
+          primary: String(s.primary).toLowerCase() === 'true',
+        });
+      }
+      for (const ac of readCsv(resolve(dir, `${pfx}bill_actions.csv`))) {
+        const b = bills.get(ac.bill_id);
+        if (!b || !ac.date) continue;
+        if (!b.firstDate || ac.date < b.firstDate) b.firstDate = ac.date;
+        if (!b.lastDate || ac.date > b.lastDate) {
+          b.lastDate = ac.date;
+          b.lastDesc = ac.description ?? null;
+        }
+      }
+      console.log(`  staged ${session}`);
     }
-    console.log(`  staged ${session}`);
   }
 
   // Classify foreign-affairs (regex over title + abstract) and pick the recent slice.
