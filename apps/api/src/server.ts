@@ -13,6 +13,7 @@ import { committeeRoutes } from './routes/committees.js';
 import { districtRoutes } from './routes/districts.js';
 import { foreignAffairsRoutes } from './routes/foreign-affairs.js';
 import { legislatorRoutes } from './routes/legislators.js';
+import { metaRoutes } from './routes/meta.js';
 import { miscRoutes } from './routes/misc.js';
 import { voteRoutes } from './routes/votes.js';
 
@@ -61,6 +62,7 @@ export function buildServer() {
   app.register(calendarRoutes);
   app.register(foreignAffairsRoutes);
   app.register(miscRoutes);
+  app.register(metaRoutes);
 
   return app;
 }

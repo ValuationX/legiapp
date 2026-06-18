@@ -17,20 +17,23 @@ export async function billRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
+    // State scope (default CA). Sanitized to a 2-letter code so it's safe to inline in subqueries.
+    const stateLit = (q.state ?? 'CA').toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
+    add('b.state = ?', stateLit);
     // Default to the current session; "all" spans every session, or pin one session_year.
     if (q.session === 'all') {
       /* no session filter */
     } else if (q.session) {
       add('b.session_year = ?', q.session);
     } else {
-      where.push(`b.session_year = (SELECT max(session_year) FROM bill)`);
+      where.push(`b.session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')`);
     }
     // "Active" (the default): bills that moved within ~30 days of the latest legislative
     // activity (data-relative, so it's robust to snapshot age) and aren't dead/vetoed —
     // i.e. the measures being worked on right now.
     if (q.active) {
       where.push(
-        `b.last_action_date >= (SELECT max(last_action_date) - interval '30 days' FROM bill WHERE session_year = (SELECT max(session_year) FROM bill))
+        `b.last_action_date >= (SELECT max(last_action_date) - interval '30 days' FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}'))
          AND coalesce(b.status, '') !~* 'died|vetoed'`,
       );
     }
@@ -102,18 +105,20 @@ export async function billRoutes(app: FastifyInstance) {
   });
 
   // Filter facets (distinct statuses / measure types / subjects) for the bills list UI.
-  app.get('/api/bills-facets', async () => {
+  app.get('/api/bills-facets', async (req) => {
+    const stateLit = (req.query as { state?: string }).state?.toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
     const statuses = await query<{ value: string }>(
-      `SELECT DISTINCT status AS value FROM bill WHERE status IS NOT NULL ORDER BY 1`,
+      `SELECT DISTINCT status AS value FROM bill WHERE status IS NOT NULL AND state = '${stateLit}' ORDER BY 1`,
     );
     const measureTypes = await query<{ value: string }>(
-      `SELECT DISTINCT measure_type AS value FROM bill ORDER BY 1`,
+      `SELECT DISTINCT measure_type AS value FROM bill WHERE state = '${stateLit}' ORDER BY 1`,
     );
     const subjects = await query<{ value: string }>(
       // Exclude the foreign-affairs region keys (lowercase tracker tags) from the
       // human-facing subject facet — the "Foreign Affairs" umbrella covers them here.
-      `SELECT subject AS value FROM bill_subject WHERE source <> 'foreign-affairs'
-       GROUP BY subject ORDER BY count(*) DESC, subject LIMIT 80`,
+      `SELECT bs.subject AS value FROM bill_subject bs JOIN bill b ON b.id = bs.bill_id
+       WHERE bs.source <> 'foreign-affairs' AND b.state = '${stateLit}'
+       GROUP BY bs.subject ORDER BY count(*) DESC, bs.subject LIMIT 80`,
     );
     return {
       statuses: statuses.map((r) => r.value),

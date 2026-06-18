@@ -243,6 +243,7 @@ const dateParam = z
   .optional();
 
 export const CalendarQuery = z.object({
+  state: z.string().optional(),
   type: z.string().optional(),
   deadline: flagParam,
   upcoming: flagParam,
@@ -317,6 +318,7 @@ const pageParams = {
 
 export const LegislatorQuery = z.object({
   ...pageParams,
+  state: z.string().optional(),
   chamber: Chamber.optional(),
   party: z.string().optional(),
   district: z.coerce.number().int().optional(),
@@ -331,6 +333,7 @@ export type LegislatorQuery = z.infer<typeof LegislatorQuery>;
 
 export const BillQuery = z.object({
   ...pageParams,
+  state: z.string().optional(),
   chamber: Chamber.optional(),
   measureType: z.string().optional(),
   status: z.string().optional(),
@@ -348,12 +351,14 @@ export const BillQuery = z.object({
 export type BillQuery = z.infer<typeof BillQuery>;
 
 export const CommitteeQuery = z.object({
+  state: z.string().optional(),
   chamber: Chamber.optional(),
   q: z.string().optional(),
 });
 export type CommitteeQuery = z.infer<typeof CommitteeQuery>;
 
 export const SearchQuery = z.object({
+  state: z.string().optional(),
   q: z.string().min(1),
   limit: z.coerce.number().int().min(1).max(20).default(6),
 });
@@ -419,6 +424,7 @@ export const ForeignAffairsResponse = z.object({
 export type ForeignAffairsResponse = z.infer<typeof ForeignAffairsResponse>;
 
 export const ForeignAffairsQuery = z.object({
+  state: z.string().optional(),
   region: z.string().optional(), // filter to one region key (e.g. "ukraine")
 });
 export type ForeignAffairsQuery = z.infer<typeof ForeignAffairsQuery>;

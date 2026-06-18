@@ -11,9 +11,11 @@ export async function calendarRoutes(app: FastifyInstance) {
   // Legislative deadlines + statewide election milestones, with filters by type,
   // deadline-only, upcoming-only, and an explicit date range.
   app.get('/api/calendar', async (req) => {
-    const { type, deadline, upcoming, from, to, limit } = CalendarQuery.parse(req.query);
+    const { state, type, deadline, upcoming, from, to, limit } = CalendarQuery.parse(req.query);
     const where: string[] = [];
     const params: unknown[] = [];
+    params.push((state ?? 'CA').toUpperCase());
+    where.push(`state = $${params.length}`);
     if (type) {
       params.push(type);
       where.push(`type = $${params.length}`);

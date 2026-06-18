@@ -18,6 +18,7 @@ export async function legislatorRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
+    add('l.state = ?', (q.state ?? 'CA').toUpperCase());
     // Default to the current roster; "all" shows every session, or pin one session_year.
     if (q.session === 'all') {
       /* no session filter */

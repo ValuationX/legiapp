@@ -31,12 +31,14 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
   // Ukraine / foreign-affairs bills across ALL sessions, with authors, coauthors
   // (each flagged in-office vs left), signed/chaptered status, and a leaderboard.
   app.get('/api/foreign-affairs', async (req) => {
-    const { region } = ForeignAffairsQuery.parse(req.query);
+    const { region, state } = ForeignAffairsQuery.parse(req.query);
+    const stateLit = (state ?? 'CA').toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
     const regionKey = region && FA_REGION_BY_KEY.has(region) ? region : undefined;
 
     // Region chips — always the full set (with counts), ordered Ukraine-first.
     const counts = await query<{ key: string; count: number }>(
-      `SELECT subject AS key, count(*)::int AS count FROM bill_subject WHERE source = 'foreign-affairs' GROUP BY subject`,
+      `SELECT bs.subject AS key, count(*)::int AS count FROM bill_subject bs JOIN bill b ON b.id = bs.bill_id
+       WHERE bs.source = 'foreign-affairs' AND b.state = '${stateLit}' GROUP BY bs.subject`,
     );
     const countMap = new Map(counts.map((c) => [c.key, c.count]));
     const regions = FA_REGIONS.map((r) => ({
@@ -82,6 +84,7 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
               (SELECT ve.ayes FROM vote_event ve WHERE ve.bill_id = b.id AND ve.is_floor ORDER BY ve.date DESC LIMIT 1) AS ayes,
               (SELECT ve.noes FROM vote_event ve WHERE ve.bill_id = b.id AND ve.is_floor ORDER BY ve.date DESC LIMIT 1) AS noes
        FROM fa JOIN bill b ON b.id = fa.bill_id
+       WHERE b.state = '${stateLit}'
        ORDER BY b.last_action_date DESC NULLS LAST, b.introduced_date DESC NULLS LAST`,
       billParams,
     );
@@ -114,7 +117,7 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
                   AND a.description ~* 'chaptered|approved by the governor'))::int AS passed,
                 count(DISTINCT s.bill_id)::int AS total
          FROM sponsorship s JOIN legislator l ON l.id = s.legislator_id
-         WHERE s.bill_id IN (SELECT bill_id FROM bill_subject WHERE source = 'foreign-affairs' ${leaderFilter})
+         WHERE l.state = '${stateLit}' AND s.bill_id IN (SELECT bill_id FROM bill_subject WHERE source = 'foreign-affairs' ${leaderFilter})
          GROUP BY lower(l.last_name), l.chamber
        ) t
        ORDER BY score DESC, authored DESC, name

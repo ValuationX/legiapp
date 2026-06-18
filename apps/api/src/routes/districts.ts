@@ -21,14 +21,15 @@ export async function districtRoutes(app: FastifyInstance) {
     // boundary set is "current" today; "proposed" is ready for when CA publishes
     // redistricting maps (same district-ingest pipeline loads them).
     const boundarySet = (req.query as { boundarySet?: string }).boundarySet === 'proposed' ? 'proposed' : 'current';
+    const state = (req.query as { state?: string }).state?.toUpperCase() ?? 'CA';
     const rows = await query<Row>(
       `SELECT d.number, d.geojson,
               l.id AS leg_id, l.full_name, l.party, l.photo_url
        FROM district d
        LEFT JOIN legislator l ON l.id = d.current_legislator_id
-       WHERE d.chamber = $1 AND d.boundary_set = $2
+       WHERE d.state = $1 AND d.chamber = $2 AND d.boundary_set = $3
        ORDER BY d.number`,
-      [chamber, boundarySet],
+      [state, chamber, boundarySet],
     );
     return {
       type: 'FeatureCollection',

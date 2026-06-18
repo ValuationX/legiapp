@@ -11,6 +11,7 @@ export async function committeeRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
+    add('c.state = ?', (q.state ?? 'CA').toUpperCase());
     if (q.chamber) add('c.chamber = ?', q.chamber);
     if (q.q) add('c.name ILIKE ?', `%${q.q}%`);
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
