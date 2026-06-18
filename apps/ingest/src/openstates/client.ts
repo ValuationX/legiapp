@@ -10,6 +10,16 @@ export const jurisdiction = () => JURISDICTION;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Open States free tier is ~10 requests/minute — keep a hard gap between every call
+// so a bulk import never trips the per-minute limit.
+const MIN_GAP_MS = 6500;
+let lastReqAt = 0;
+async function throttle() {
+  const wait = MIN_GAP_MS - (Date.now() - lastReqAt);
+  if (wait > 0) await sleep(wait);
+  lastReqAt = Date.now();
+}
+
 interface Page<T> {
   results: T[];
   pagination?: { page: number; max_page: number; per_page: number; total_items: number };
@@ -23,16 +33,30 @@ export async function osGet<T = unknown>(path: string, params: Record<string, un
     else url.searchParams.set(k, String(v));
   }
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, {
-      headers: { 'X-API-KEY': openStatesKey() },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (res.status === 429 && attempt < 5) {
-      await sleep(2000 * (attempt + 1)); // rate-limit backoff
-      continue;
+    try {
+      await throttle();
+      const res = await fetch(url, {
+        headers: { 'X-API-KEY': openStatesKey() },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        // 429 → wait out the per-minute window; 5xx / transient HTML errors → short backoff.
+        if (attempt < 6) {
+          await sleep(res.status === 429 ? 60_000 : 5_000 * (attempt + 1));
+          continue;
+        }
+        throw new Error(`Open States ${res.status}: ${(await res.text().catch(() => '')).slice(0, 160)}`);
+      }
+      return (await res.json()) as T;
+    } catch (err) {
+      // transient timeout / network blip — retry a few times before giving up
+      const name = (err as Error)?.name;
+      if (attempt < 5 && (name === 'TimeoutError' || name === 'AbortError' || name === 'TypeError')) {
+        await sleep(1500 * (attempt + 1));
+        continue;
+      }
+      throw err;
     }
-    if (!res.ok) throw new Error(`Open States ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
-    return (await res.json()) as T;
   }
 }
 
