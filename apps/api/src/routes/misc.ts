@@ -1,6 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
 import { SearchQuery } from '@legiapp/shared';
-import { runAll } from '@legiapp/ingest/run';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
 
@@ -102,7 +101,19 @@ export async function miscRoutes(app: FastifyInstance) {
       token.length === expected.length &&
       timingSafeEqual(Buffer.from(token), Buffer.from(expected));
     if (!ok) return reply.code(401).send({ error: 'unauthorized' });
-    void runAll().catch((err) => app.log.error(err));
+    // Ingest can't run on serverless (long-running + ~950MB download); on Vercel the
+    // data is published from a snapshot into Neon instead.
+    if (process.env.VERCEL) {
+      return reply
+        .code(501)
+        .send({ error: 'Ingest runs only on the self-hosted deployment; this site is published from a snapshot.' });
+    }
+    // Lazy + non-statically-analyzable import so the ETL (unzipper/cheerio/etc.) is
+    // never bundled into the serverless function.
+    const ingestModule = '@legiapp/ingest/run';
+    void import(ingestModule)
+      .then((m) => (m as { runAll: () => Promise<void> }).runAll())
+      .catch((err) => app.log.error(err));
     return reply.code(202).send({ started: true });
   });
 }
