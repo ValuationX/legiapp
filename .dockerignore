@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+.postgres
+.data-cache
+.git
+*.log
+.env
+.env.prod
+# The full dev snapshot (~57 MB) is not used by any image — production loads the
+# small focused snapshot (data-snapshot-focused/). Keep it out of the build context.
+/data-snapshot
+.plans
+plans

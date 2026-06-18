@@ -1,0 +1,36 @@
+{
+  "name": "@legiapp/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./run": "./src/pipeline.js"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@legiapp/db": "*",
+    "cheerio": "^1.0.0",
+    "js-yaml": "^4.2.0",
+    "mapshaper": "^0.6.102",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^9.0.1",
+    "pg": "^8.13.1",
+    "pg-copy-streams": "^6.0.6",
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.11.10",
+    "@types/pg-copy-streams": "^1.2.5",
+    "@types/unzipper": "^0.10.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

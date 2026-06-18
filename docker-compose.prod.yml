@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Production deployment for "LegiApp for Nova Ukraine".
+#
+#   caddy (web)  ── serves the SPA + auto-HTTPS, proxies /api ──►  api (Fastify)
+#                                                                    │
+#   init ── migrates schema + loads the focused publish snapshot ──► db (Postgres)
+#
+# The published DB is the small, on-topic FOCUSED snapshot (data-snapshot-focused/,
+# ~4 MB) — NOT the full dev dataset and NOT the 950 MB PUBINFO ingest. To refresh
+# it, re-run `npm run db:export:focused` locally and redeploy.
+#
+# Quick start:  cp .env.prod.example .env.prod  → edit  → see DEPLOY.md
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+name: legiapp-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: legiapp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d legiapp']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # One-shot: apply migrations, then load the focused snapshot. Runs to completion
+  # and exits; `api` waits for it to succeed. Re-running `up` re-imports (the import
+  # truncates + reloads), so a redeploy refreshes the data from the committed snapshot.
+  init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "npm run migrate -w @legiapp/db && npm run db:import"
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/legiapp
+      SNAPSHOT_DIR: data-snapshot-focused
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run start -w @legiapp/api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/legiapp
+      API_PORT: '4000'
+      NODE_ENV: production
+      # Shared access code that gates the whole site. Set a strong value.
+      ACCESS_CODE: ${ACCESS_CODE:?set ACCESS_CODE in .env.prod}
+      # Same-origin behind Caddy, so CORS is moot; set for completeness.
+      WEB_ORIGIN: ${WEB_ORIGIN:-https://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    environment:
+      # A hostname → automatic HTTPS (Let's Encrypt). ":80" → plain HTTP testing.
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env.prod}
+    depends_on:
+      - api
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

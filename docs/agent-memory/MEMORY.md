@@ -1,0 +1,2 @@
+- [LegiApp project](legiapp-project.md) — CA Legislature tracker; PUBINFO-first data, TS monorepo, vertical slice shipped
+- [Dev environment constraints](dev-environment-constraints.md) — no Docker/WSL2/admin here; use portable local Postgres

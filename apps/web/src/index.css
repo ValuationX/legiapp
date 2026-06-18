@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 16%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 18%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 214 95% 95%;
+    --accent-foreground: 222 47% 18%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 90%;
+    --input: 214 32% 88%;
+    --ring: 217 91% 45%;
+    --radius: 0.5rem;
+
+    /* Party palette — blue (D) / red (R); always paired with a D/R label so color
+       is never the only signal (colorblind-safe redundant encoding). */
+    --dem: 217 91% 42%;
+    --dem-soft: 214 95% 94%;
+    --dem-fg: 217 91% 32%;
+    --rep: 0 72% 45%;
+    --rep-soft: 0 86% 96%;
+    --rep-fg: 0 72% 38%;
+
+    /* Vote outcomes — teal (yea) / amber (nay): distinguishable for all CVD types. */
+    --yea: 173 80% 30%;
+    --nay: 28 90% 45%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

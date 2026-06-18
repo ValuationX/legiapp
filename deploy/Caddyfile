@@ -1,0 +1,23 @@
+# Caddy is the single public entrypoint: it serves the built SPA and
+# reverse-proxies /api to the Fastify API. SITE_ADDRESS controls TLS —
+# a hostname (e.g. legiapp.example.org) gets automatic HTTPS via Let's Encrypt;
+# ":80" serves plain HTTP for local / IP-only testing.
+#
+# Because the SPA and the API are served from the same origin here, the access
+# cookie is first-party and no CORS preflight is involved.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# API → Fastify container.
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	# Everything else is the single-page app; unknown paths fall back to
+	# index.html so client-side routing works on hard refresh / deep links.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

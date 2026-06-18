@@ -1,0 +1,66 @@
+# Containerized stack for environments where Docker is available.
+# Local dev without Docker uses the portable Postgres in `npm run db:start`
+# (see README) — this compose file mirrors that setup with PostGIS for the
+# later district-maps phase.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: legiapp
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d legiapp']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "npm run migrate -w @legiapp/db && npm run start -w @legiapp/api"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/legiapp
+      API_PORT: '4000'
+      INGEST_REFRESH_TOKEN: dev-refresh-token
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '4000:4000'
+
+  ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Seed once, then run the daily scheduler. First run downloads the ~950MB
+    # PUBINFO archive into the cache volume.
+    command: sh -c "npm run start -w @legiapp/ingest -- all && npm run start -w @legiapp/ingest -- schedule"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/legiapp
+      PUBINFO_ARCHIVE: '2025'
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - pubinfo_cache:/app/.data-cache
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - '8080:80'
+
+volumes:
+  pgdata:
+  pubinfo_cache:

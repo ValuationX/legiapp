@@ -1,0 +1,11 @@
+# Keep the Vercel upload/build lean — none of this is needed at build or runtime
+# (the data lives in your managed Postgres, loaded separately).
+data-snapshot
+data-snapshot-focused
+.postgres
+.data-cache
+.plans
+deploy
+docker-compose.yml
+docker-compose.prod.yml
+*.log

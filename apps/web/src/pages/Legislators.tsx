@@ -1,0 +1,206 @@
+import type { LegislatorSummary } from '@legiapp/shared';
+import { useQuery } from '@tanstack/react-query';
+import { LayoutGrid, Table as TableIcon } from 'lucide-react';
+import * as React from 'react';
+import { Link } from 'react-router-dom';
+import { ErrorState, LoadingRows, MemberAvatar, MemberCell, PageHeader, PartyBadge, SourceBadge } from '@/components/common';
+import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
+import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
+import { api } from '@/lib/api';
+import { chamberLabel, partyMeta } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+export default function Legislators() {
+  const [chamber, setChamber] = React.useState('');
+  const [party, setParty] = React.useState('');
+  const [reelection, setReelection] = React.useState('');
+  const [ukraine, setUkraine] = React.useState('');
+  const [q, setQ] = React.useState('');
+  const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
+
+  // Only 120 members total — fetch all matching and render without pagination.
+  const qs = new URLSearchParams({ pageSize: '200' });
+  if (chamber) qs.set('chamber', chamber);
+  if (party) qs.set('party', party);
+  if (reelection) qs.set('reelectionYear', reelection);
+  if (ukraine) {
+    qs.set('positionTopic', 'Ukraine');
+    qs.set('positionStance', ukraine);
+  }
+  if (q) qs.set('q', q);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['legislators', qs.toString()],
+    queryFn: () => api.legislators(qs.toString()),
+  });
+  const items = data?.items ?? [];
+
+  return (
+    <div>
+      <PageHeader title="Legislators" subtitle="All 120 members of the California Assembly and Senate.">
+        <div className="inline-flex rounded-md border bg-card p-1">
+          <ViewBtn active={view === 'gallery'} onClick={() => setView('gallery')} icon={LayoutGrid} />
+          <ViewBtn active={view === 'table'} onClick={() => setView('table')} icon={TableIcon} />
+        </div>
+      </PageHeader>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Input placeholder="Search by name…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <Select value={chamber} onChange={(e) => setChamber(e.target.value)}>
+          <option value="">All chambers</option>
+          <option value="assembly">Assembly</option>
+          <option value="senate">Senate</option>
+        </Select>
+        <Select value={party} onChange={(e) => setParty(e.target.value)}>
+          <option value="">All parties</option>
+          <option value="Democratic">Democratic</option>
+          <option value="Republican">Republican</option>
+        </Select>
+        <Select value={reelection} onChange={(e) => setReelection(e.target.value)} title="Next election">
+          <option value="">Any election cycle</option>
+          <option value="2026">Up for reelection 2026</option>
+          <option value="2028">Up for reelection 2028</option>
+        </Select>
+        <Select value={ukraine} onChange={(e) => setUkraine(e.target.value)} title="Position on Ukraine">
+          <option value="">Ukraine: any position</option>
+          <option value="support">Ukraine: Support</option>
+          <option value="oppose">Ukraine: Oppose</option>
+          <option value="mixed">Ukraine: Mixed</option>
+          <option value="unknown">Ukraine: Unknown</option>
+        </Select>
+      </div>
+
+      {!isLoading && items.length > 0 ? <Composition items={items} /> : null}
+
+      {isError ? (
+        <ErrorState error={error} />
+      ) : view === 'gallery' ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
+            : items.map((l) => <MemberGalleryCard key={l.id} l={l} />)}
+          {!isLoading && items.length === 0 ? (
+            <p className="col-span-full py-10 text-center text-sm text-muted-foreground">No legislators match.</p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <THead>
+              <TR>
+                <TH>Member</TH>
+                <TH>Party</TH>
+                <TH>Chamber</TH>
+                <TH>District</TH>
+                <TH>Role</TH>
+                <TH>Source</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {isLoading ? (
+                <LoadingRows rows={10} cols={6} />
+              ) : (
+                items.map((l) => (
+                  <TR key={l.id}>
+                    <TD>
+                      <MemberCell id={l.id} name={l.fullName} photoUrl={l.photoUrl} party={l.party} chamber={l.chamber} />
+                    </TD>
+                    <TD>
+                      <PartyBadge party={l.party} />
+                    </TD>
+                    <TD className="text-sm">{chamberLabel(l.chamber)}</TD>
+                    <TD className="tabular text-sm">{l.district}</TD>
+                    <TD>
+                      <div className="flex flex-wrap gap-1">
+                        {l.leadershipRoles.map((r) => (
+                          <Badge key={r.role} className="bg-primary/10 text-primary ring-1 ring-primary/20">
+                            {r.role}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TD>
+                    <TD>
+                      <SourceBadge source={l.source} lastVerified={l.lastVerified} conflict={l.conflict} />
+                    </TD>
+                  </TR>
+                ))
+              )}
+            </TBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ViewBtn({ active, onClick, icon: Icon }: { active: boolean; onClick: () => void; icon: typeof LayoutGrid }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'rounded p-1.5 transition-colors',
+        active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+function MemberGalleryCard({ l }: { l: LegislatorSummary }) {
+  return (
+    <Link
+      to={`/legislators/${l.id}`}
+      className="group rounded-lg border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <MemberAvatar name={l.fullName} photoUrl={l.photoUrl} party={l.party} size={56} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium leading-tight group-hover:text-primary">{l.fullName}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {chamberLabel(l.chamber)} · District {l.district}
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            <PartyBadge party={l.party} />
+            {l.leadershipRoles.map((r) => (
+              <Badge key={r.role} className="bg-primary/10 text-primary ring-1 ring-primary/20">
+                {r.role}
+              </Badge>
+            ))}
+            {l.nextElectionYear ? (
+              <Badge className="bg-secondary text-secondary-foreground ring-1 ring-border" title="Next election">
+                ↻ {l.nextElectionYear}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function Composition({ items }: { items: LegislatorSummary[] }) {
+  const d = items.filter((i) => partyMeta(i.party).code === 'D').length;
+  const r = items.filter((i) => partyMeta(i.party).code === 'R').length;
+  const o = items.length - d - r;
+  const total = Math.max(items.length, 1);
+  return (
+    <div className="mb-4 rounded-lg border bg-card p-3">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+        <div className="bg-dem" style={{ width: `${(d / total) * 100}%` }} />
+        <div className="bg-rep" style={{ width: `${(r / total) * 100}%` }} />
+        {o > 0 ? <div className="bg-muted-foreground/40" style={{ width: `${(o / total) * 100}%` }} /> : null}
+      </div>
+      <div className="mt-2 flex items-center gap-4 text-xs">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-dem" /> <b className="tabular">{d}</b> Democratic
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-rep" /> <b className="tabular">{r}</b> Republican
+        </span>
+        {o > 0 ? <span className="text-muted-foreground">{o} vacant/other</span> : null}
+        <span className="ml-auto text-muted-foreground tabular">{items.length} members</span>
+      </div>
+    </div>
+  );
+}

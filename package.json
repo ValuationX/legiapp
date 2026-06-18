@@ -1,0 +1,46 @@
+{
+  "name": "legiapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "California Legislature Tracker — operational intelligence for advocacy orgs & lobbyists.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "db:start": "node scripts/db.mjs start",
+    "db:stop": "node scripts/db.mjs stop",
+    "db:status": "node scripts/db.mjs status",
+    "db:psql": "node scripts/db.mjs psql",
+    "db:reset": "node scripts/db.mjs reset",
+    "db:export": "tsx apps/ingest/src/snapshot/export.ts",
+    "db:export:focused": "tsx apps/ingest/src/snapshot/export-focused.ts",
+    "db:import": "tsx apps/ingest/src/snapshot/import.ts",
+    "migrate": "npm run migrate -w @legiapp/db",
+    "generate": "npm run generate -w @legiapp/db",
+    "ingest": "npm run start -w @legiapp/ingest --",
+    "dev:api": "npm run dev -w @legiapp/api",
+    "dev:web": "npm run dev -w @legiapp/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pg": "^8.21.0"
+  }
+}

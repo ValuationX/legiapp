@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.npm/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# portable postgres: binaries, data dir, logs
+.postgres/
+
+# PUBINFO / source download cache (large zips + extracted data)
+.data-cache/
+
+# Full dev DB dump (~29 MB) — not needed in the repo. The PUBLISHED data is the
+# small data-snapshot-focused/ (committed); the live DB is loaded from it.
+/data-snapshot/
+
+# env (keep .env.prod / .env out of git — they hold real secrets)
+.env
+.env.prod
+.env.local
+*.local
+
+# Vercel CLI
+.vercel/
+
+# Claude Code personal/local settings (keep launch.json shared)
+.claude/settings.local.json
+
+# logs
+*.log
+logs/
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
+
+# test / coverage
+coverage/
