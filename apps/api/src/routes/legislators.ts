@@ -28,7 +28,9 @@ export async function legislatorRoutes(app: FastifyInstance) {
       where.push('l.active = true');
     }
     if (q.chamber) add('l.chamber = ?', q.chamber);
-    if (q.party) add('l.party = ?', q.party);
+    // Prefix match so fusion-party states (e.g. NY "Democratic/Working Families")
+    // still match the "Democratic"/"Republican" filter; exact for CA.
+    if (q.party) add('l.party ILIKE ?', `${q.party}%`);
     if (q.district) add('l.district = ?', q.district);
     if (q.reelectionYear) add('l.next_election_year = ?', q.reelectionYear);
     if (q.q) add('l.full_name ILIKE ?', `%${q.q}%`);

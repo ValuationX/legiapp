@@ -1,4 +1,5 @@
-import type { Chamber, VoteOption } from '@legiapp/shared';
+import { type Chamber, type VoteOption, getState } from '@legiapp/shared';
+import { getStateCode } from '@/lib/api';
 
 export interface PartyMeta {
   code: string;
@@ -37,15 +38,20 @@ export function stanceMeta(stance: string): { label: string; badge: string } {
   }
 }
 
+// State-aware: lower house is "Assembly" for CA/NY but "House" elsewhere. Reads the
+// active state synchronously (set by StateProvider) so every call site is correct
+// without threading state through — switching states refetches + re-renders consumers.
 export function chamberLabel(c: Chamber | null | undefined): string {
-  if (c === 'assembly') return 'Assembly';
-  if (c === 'senate') return 'Senate';
+  const st = getState(getStateCode());
+  if (c === 'assembly') return st?.lowerLabel ?? 'Assembly';
+  if (c === 'senate') return st?.upperLabel ?? 'Senate';
   return '—';
 }
 
 export function chamberShort(c: Chamber | null | undefined): string {
-  if (c === 'assembly') return 'AD';
-  if (c === 'senate') return 'SD';
+  const st = getState(getStateCode());
+  if (c === 'assembly') return st?.lowerShort ?? 'AD';
+  if (c === 'senate') return st?.upperShort ?? 'SD';
   return '';
 }
 

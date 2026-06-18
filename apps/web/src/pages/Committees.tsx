@@ -6,10 +6,12 @@ import { ErrorState, PageHeader } from '@/components/common';
 import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 
 export default function Committees() {
   const [chamber, setChamber] = React.useState('');
   const [q, setQ] = React.useState('');
+  const sl = useStateLabels();
 
   const qs = new URLSearchParams();
   if (chamber) qs.set('chamber', chamber);
@@ -31,8 +33,8 @@ export default function Committees() {
         <Input placeholder="Search committees…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         <Select aria-label="Filter by chamber" value={chamber} onChange={(e) => setChamber(e.target.value)}>
           <option value="">All chambers</option>
-          <option value="assembly">Assembly</option>
-          <option value="senate">Senate</option>
+          <option value="assembly">{sl.lowerLabel}</option>
+          <option value="senate">{sl.upperLabel}</option>
         </Select>
       </div>
 

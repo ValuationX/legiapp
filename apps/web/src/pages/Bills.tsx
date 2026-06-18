@@ -55,8 +55,8 @@ export default function Bills() {
         />
         <Select aria-label="Filter by chamber" value={chamber} onChange={(e) => setChamber(e.target.value)}>
           <option value="">All chambers</option>
-          <option value="assembly">Assembly</option>
-          <option value="senate">Senate</option>
+          <option value="assembly">{sl.lowerLabel}</option>
+          <option value="senate">{sl.upperLabel}</option>
         </Select>
         <Select aria-label="Filter by bill type" value={measureType} onChange={(e) => setMeasureType(e.target.value)}>
           <option value="">All types</option>

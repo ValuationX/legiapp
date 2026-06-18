@@ -67,8 +67,8 @@ export default function Legislators() {
         <Input placeholder="Search by name…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         <Select value={chamber} onChange={(e) => setChamber(e.target.value)}>
           <option value="">All chambers</option>
-          <option value="assembly">Assembly</option>
-          <option value="senate">Senate</option>
+          <option value="assembly">{sl.lowerLabel}</option>
+          <option value="senate">{sl.upperLabel}</option>
         </Select>
         <Select value={party} onChange={(e) => setParty(e.target.value)}>
           <option value="">All parties</option>

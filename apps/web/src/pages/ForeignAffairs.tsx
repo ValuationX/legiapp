@@ -235,8 +235,8 @@ export default function ForeignAffairs() {
           {(
             [
               ['', 'Both'],
-              ['assembly', 'Assembly'],
-              ['senate', 'Senate'],
+              ['assembly', sl.lowerLabel],
+              ['senate', sl.upperLabel],
             ] as const
           ).map(([val, lbl]) => (
             <button
@@ -268,7 +268,7 @@ export default function ForeignAffairs() {
                 title="No measures found"
                 hint={
                   chamber
-                    ? `No ${chamber === 'senate' ? 'Senate' : 'Assembly'} measures for the current filters.`
+                    ? `No ${chamber === 'senate' ? sl.upperLabel : sl.lowerLabel} measures for the current filters.`
                     : 'Run `npm run ingest -- foreign-affairs` (and the historical PUBINFO sessions) to populate the tracker.'
                 }
               />
@@ -343,7 +343,7 @@ export default function ForeignAffairs() {
                           </div>
                           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                             <span>
-                              {l.chamber ? `${l.chamber === 'senate' ? 'Senate' : 'Assembly'} · ` : ''}
+                              {l.chamber ? `${l.chamber === 'senate' ? sl.upperLabel : sl.lowerLabel} · ` : ''}
                               {l.authored} authored · {l.coauthored} co{l.passed ? ` · ${l.passed} passed` : ''}
                             </span>
                             {!l.inOffice ? (
