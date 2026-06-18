@@ -22,6 +22,7 @@ import {
   timestamp,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enums
@@ -224,10 +225,13 @@ export const ingestRun = pgTable('ingest_run', {
 export const legislator = pgTable(
   'legislator',
   {
-    id: text('id').primaryKey(), // `${sessionYear}:${chamber}:${district}`
+    id: text('id').primaryKey(), // CA: `${state}:${sessionYear}:${chamber}:${district}`; source-fed: `${state}:person:${sourcePersonId}`
+    state: text('state').notNull(), // 2-letter USPS code, e.g. 'CA', 'NY'
     sessionYear: text('session_year').notNull(),
     chamber: chamberEnum('chamber').notNull(),
-    district: integer('district').notNull(),
+    district: integer('district'), // numeric district (nullable — MA uses named districts → district_label)
+    districtLabel: text('district_label'), // display label, e.g. "5" or "3rd Middlesex"
+    sourcePersonId: text('source_person_id'), // Open States / LegiScan stable person id (source-fed states)
     fullName: text('full_name').notNull(),
     firstName: text('first_name'),
     lastName: text('last_name'),
@@ -246,8 +250,16 @@ export const legislator = pgTable(
     ...provenance(),
   },
   (t) => ({
-    naturalKey: uniqueIndex('legislator_natural_key').on(t.sessionYear, t.chamber, t.district),
-    byChamber: index('legislator_chamber_idx').on(t.chamber),
+    // CA/PUBINFO rows (no source person id) are unique by state+session+chamber+district.
+    naturalKey: uniqueIndex('legislator_natural_key')
+      .on(t.state, t.sessionYear, t.chamber, t.district)
+      .where(sql`source_person_id IS NULL`),
+    // Source-fed rows (Open States/LegiScan) are unique by their stable person id —
+    // this is what lets AZ multi-member districts and MA named districts coexist.
+    sourceKey: uniqueIndex('legislator_source_key')
+      .on(t.state, t.sessionYear, t.sourcePersonId)
+      .where(sql`source_person_id IS NOT NULL`),
+    byState: index('legislator_state_chamber_idx').on(t.state, t.chamber),
     byLastName: index('legislator_last_name_idx').on(t.lastName),
     byPubinfoName: index('legislator_pubinfo_name_idx').on(t.pubinfoName),
   }),
@@ -270,7 +282,8 @@ export const leadershipRole = pgTable(
 export const committee = pgTable(
   'committee',
   {
-    id: text('id').primaryKey(), // location_code (PUBINFO) or a name slug (scraper)
+    id: text('id').primaryKey(), // `${state}:${locationCode|slug}`
+    state: text('state').notNull(),
     name: text('name').notNull(),
     chamber: chamberEnum('chamber'),
     type: text('type'), // standing | floor | select | joint | budget_sub | other
@@ -279,7 +292,7 @@ export const committee = pgTable(
   },
   (t) => ({
     byLocationCode: index('committee_location_code_idx').on(t.locationCode),
-    byChamber: index('committee_chamber_idx').on(t.chamber),
+    byState: index('committee_state_chamber_idx').on(t.state, t.chamber),
   }),
 );
 
@@ -303,7 +316,8 @@ export const committeeMembership = pgTable(
 export const bill = pgTable(
   'bill',
   {
-    id: text('id').primaryKey(), // PUBINFO BILL_ID, e.g. "202520260AB1"
+    id: text('id').primaryKey(), // `${state}:${nativeBillId}`, e.g. "CA:202520260AB1"
+    state: text('state').notNull(),
     sessionYear: text('session_year').notNull(),
     session: text('session').notNull(), // display, e.g. "2025-2026"
     measureType: text('measure_type').notNull(), // AB, SB, ACR, SCR, ...
@@ -331,6 +345,7 @@ export const bill = pgTable(
     ...provenance(),
   },
   (t) => ({
+    byState: index('bill_state_session_idx').on(t.state, t.sessionYear),
     byMeasureType: index('bill_measure_type_idx').on(t.measureType),
     byStatus: index('bill_status_idx').on(t.status),
     byOrigin: index('bill_origin_idx').on(t.chamberOfOrigin),
@@ -399,7 +414,8 @@ export const sponsorship = pgTable(
 export const voteEvent = pgTable(
   'vote_event',
   {
-    id: text('id').primaryKey(), // synthetic from bill/location/datetime/seq/motion
+    id: text('id').primaryKey(), // `${state}:` + synthetic from bill/location/datetime/seq/motion
+    state: text('state').notNull(),
     billId: text('bill_id')
       .notNull()
       .references(() => bill.id, { onDelete: 'cascade' }),
@@ -469,6 +485,7 @@ export const memberPosition = pgTable(
   'member_position',
   {
     id: serial('id').primaryKey(),
+    state: text('state').notNull(),
     legislatorId: text('legislator_id'),
     topic: text('topic').notNull(),
     stance: stanceEnum('stance').notNull().default('unknown'),
@@ -489,9 +506,11 @@ export const memberPosition = pgTable(
 // their respective roadmap phases (reconciliation / calendar / maps / alerts).
 // ─────────────────────────────────────────────────────────────────────────────
 export const district = pgTable('district', {
-  id: text('id').primaryKey(), // `${chamber}-${number}-${boundarySet}`
+  id: text('id').primaryKey(), // `${state}-${chamber}-${number|label}-${boundarySet}`
+  state: text('state').notNull(),
   chamber: chamberEnum('chamber').notNull(),
-  number: integer('number').notNull(),
+  number: integer('number'), // nullable — MA uses named districts → district_label
+  districtLabel: text('district_label'),
   boundarySet: text('boundary_set').notNull().default('current'),
   // GeoJSON for now; swap to PostGIS geometry in the maps phase.
   geojson: jsonb('geojson'),
@@ -503,6 +522,7 @@ export const district = pgTable('district', {
 
 export const statement = pgTable('statement', {
   id: serial('id').primaryKey(),
+  state: text('state').notNull(),
   legislatorId: text('legislator_id').references(() => legislator.id, { onDelete: 'cascade' }),
   date: timestamp('date', { withTimezone: true }),
   type: text('type'),
@@ -516,6 +536,7 @@ export const calendarEvent = pgTable(
   'calendar_event',
   {
     id: serial('id').primaryKey(),
+    state: text('state').notNull(),
     // Stable key for idempotent upserts: ICS UID or a curated slug.
     externalId: text('external_id'),
     date: timestamp('date', { withTimezone: true }).notNull(),
@@ -530,7 +551,7 @@ export const calendarEvent = pgTable(
     ...provenance(),
   },
   (t) => ({
-    byExternalId: uniqueIndex('calendar_event_external_id_unique').on(t.externalId),
+    byExternalId: uniqueIndex('calendar_event_external_id_unique').on(t.state, t.externalId),
     byDate: index('calendar_event_date_idx').on(t.date),
     byType: index('calendar_event_type_idx').on(t.type),
   }),

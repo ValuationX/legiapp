@@ -36,16 +36,16 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
     // their actions/sponsorships/votes/hearings/memberships, leaving other sessions
     // (and the shared committee table) intact.
     label: `wipe session ${sy}`,
-    sql: `DELETE FROM bill WHERE session_year = '${sy}';
-          DELETE FROM legislator WHERE session_year = '${sy}';`,
+    sql: `DELETE FROM bill WHERE state = 'CA' AND session_year = '${sy}';
+          DELETE FROM legislator WHERE state = 'CA' AND session_year = '${sy}';`,
   },
   {
     label: 'committees (from committee location codes)',
     // Location codes recur across sessions — upsert so a second session doesn't
     // collide on the shared, session-agnostic committee table.
     sql: `
-      INSERT INTO committee (id, name, chamber, type, location_code, source)
-      SELECT location_code, long_description,
+      INSERT INTO committee (id, state, name, chamber, type, location_code, source)
+      SELECT 'CA:' || location_code, 'CA', long_description,
              ${CHAMBER_FROM_LOC('location_code', 'description')}, 'standing', location_code, 'pubinfo'
       FROM tmp_loc WHERE location_type = 'B'
       ON CONFLICT (id) DO NOTHING;`,
@@ -53,14 +53,15 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
   {
     label: 'legislators (current roster)',
     sql: `
-      INSERT INTO legislator (id, session_year, chamber, district, full_name, first_name, last_name,
+      INSERT INTO legislator (id, state, session_year, chamber, district, district_label, full_name, first_name, last_name,
                               pubinfo_name, party, active, source)
       SELECT DISTINCT ON (house_type, (substring(district from 3))::int)
-             session_year || ':' || (CASE house_type WHEN 'A' THEN 'assembly' ELSE 'senate' END)
+             'CA:' || session_year || ':' || (CASE house_type WHEN 'A' THEN 'assembly' ELSE 'senate' END)
                || ':' || (substring(district from 3))::int,
-             session_year,
+             'CA', session_year,
              (CASE house_type WHEN 'A' THEN 'assembly' ELSE 'senate' END)::chamber,
              (substring(district from 3))::int,
+             (substring(district from 3))::int::text,
              COALESCE(NULLIF(btrim(concat_ws(' ', first_name, last_name)), ''), legislator_name, '(Vacant)'),
              first_name, last_name, legislator_name,
              (CASE party WHEN 'DEM' THEN 'Democratic' WHEN 'REP' THEN 'Republican' ELSE party END),
@@ -74,7 +75,8 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
     // so historical-session members are inactive and read paths (legislator list,
     // enrichment, committee matching, district relink) keep targeting the current roster.
     label: 'mark current-session members active',
-    sql: `UPDATE legislator SET active = (session_year = (SELECT max(session_year) FROM legislator));`,
+    sql: `UPDATE legislator SET active = (session_year = (SELECT max(session_year) FROM legislator WHERE state = 'CA'))
+          WHERE state = 'CA';`,
   },
   {
     // Deterministic CA cycle: Assembly = every even year; Senate even-numbered
@@ -85,7 +87,8 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
         WHEN chamber = 'assembly' THEN right(session_year, 4)::int
         WHEN chamber = 'senate' AND district % 2 = 0 THEN right(session_year, 4)::int
         ELSE right(session_year, 4)::int + 2
-      END;`,
+      END
+      WHERE state = 'CA';`,
   },
   {
     label: 'name lookup (unique last name OR full name per chamber)',
@@ -98,13 +101,13 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
       CREATE TEMP TABLE leg_match AS
         SELECT chamber, key, legislator_id FROM (
           SELECT chamber, lower(last_name) AS key, min(id) AS legislator_id, count(*) AS n
-          FROM legislator WHERE last_name IS NOT NULL AND session_year = '${sy}'
+          FROM legislator WHERE last_name IS NOT NULL AND state = 'CA' AND session_year = '${sy}'
           GROUP BY chamber, lower(last_name)
           UNION ALL
           SELECT chamber,
                  lower(btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))) AS key,
                  min(id), count(*)
-          FROM legislator WHERE first_name IS NOT NULL AND last_name IS NOT NULL AND session_year = '${sy}'
+          FROM legislator WHERE first_name IS NOT NULL AND last_name IS NOT NULL AND state = 'CA' AND session_year = '${sy}'
           GROUP BY chamber, lower(btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, '')))
         ) s
         WHERE n = 1;
@@ -113,10 +116,10 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
   {
     label: 'bills',
     sql: `
-      INSERT INTO bill (id, session_year, session, measure_type, measure_num, identifier, chamber_of_origin,
+      INSERT INTO bill (id, state, session_year, session, measure_type, measure_num, identifier, chamber_of_origin,
                         title, summary, status, status_code, current_location, current_location_code,
                         current_house, latest_version_id, urgency, appropriation, fiscal_committee, source)
-      SELECT b.bill_id, b.session_year,
+      SELECT 'CA:' || b.bill_id, 'CA', b.session_year,
              substring(b.session_year,1,4) || '-' || substring(b.session_year,5,4),
              b.measure_type, b.measure_num::int, b.measure_type || ' ' || b.measure_num,
              (CASE WHEN left(b.measure_type,1) = 'S' THEN 'senate' ELSE 'assembly' END)::chamber,
@@ -138,18 +141,18 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
                    min(action_date::timestamp) AS min_date,
                    (array_agg(action ORDER BY action_sequence::int DESC NULLS LAST))[1] AS last_action
             FROM raw.bill_history_tbl GROUP BY bill_id) h
-      WHERE bill.id = h.bill_id;`,
+      WHERE bill.id = 'CA:' || h.bill_id;`,
   },
   {
     label: 'bill actions (history timeline)',
     sql: `
       INSERT INTO bill_action (id, bill_id, action_date, description, action_sequence, action_code,
                               primary_location, chamber, source)
-      SELECT h.bill_history_id, h.bill_id, h.action_date::timestamp, h.action,
+      SELECT 'CA:' || h.bill_history_id, 'CA:' || h.bill_id, h.action_date::timestamp, h.action,
              NULLIF(h.action_sequence,'')::int, h.action_code, h.primary_location,
              ${CHAMBER_FROM_LOC('h.primary_location', 'loc.description')}, 'pubinfo'
       FROM raw.bill_history_tbl h
-      JOIN bill b ON b.id = h.bill_id
+      JOIN bill b ON b.id = 'CA:' || h.bill_id
       LEFT JOIN tmp_loc loc ON loc.location_code = h.primary_location
       ON CONFLICT (id) DO NOTHING;`,
   },
@@ -171,17 +174,17 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
   {
     label: 'vote events (summary)',
     sql: `
-      INSERT INTO vote_event (id, bill_id, date, chamber, location_code, location_name, committee_id,
+      INSERT INTO vote_event (id, state, bill_id, date, chamber, location_code, location_name, committee_id,
                               is_floor, motion_id, motion, result, ayes, noes, abstain, source)
-      SELECT ${VOTE_KEY('s')}, s.bill_id, s.vote_date_time::timestamp,
+      SELECT 'CA:' || ${VOTE_KEY('s')}, 'CA', 'CA:' || s.bill_id, s.vote_date_time::timestamp,
              ${CHAMBER_FROM_LOC('s.location_code', 'loc.description')},
              s.location_code, loc.description,
-             (CASE WHEN loc.location_type = 'B' THEN s.location_code END),
+             (CASE WHEN loc.location_type = 'B' THEN 'CA:' || s.location_code END),
              (s.location_code IN ('AFLOOR','SFLOOR')),
              s.motion_id, m.motion_text, s.vote_result,
              NULLIF(s.ayes,'')::int, NULLIF(s.noes,'')::int, NULLIF(s.abstain,'')::int, 'pubinfo'
       FROM raw.bill_summary_vote_tbl s
-      JOIN bill b ON b.id = s.bill_id
+      JOIN bill b ON b.id = 'CA:' || s.bill_id
       LEFT JOIN tmp_loc loc ON loc.location_code = s.location_code
       LEFT JOIN tmp_motion m ON m.motion_id = s.motion_id
       ON CONFLICT (id) DO NOTHING;`,
@@ -190,12 +193,12 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
     label: 'vote records (detail)',
     sql: `
       INSERT INTO vote_record (vote_event_id, legislator_id, legislator_name, option, member_order)
-      SELECT ${VOTE_KEY('d')}, lbn.legislator_id, d.legislator_name,
+      SELECT 'CA:' || ${VOTE_KEY('d')}, lbn.legislator_id, d.legislator_name,
              (CASE d.vote_code WHEN 'AYE' THEN 'yea' WHEN 'NOE' THEN 'nay'
                                WHEN 'ABS' THEN 'abstain' ELSE 'other' END)::vote_option,
              NULLIF(d.member_order,'')::int
       FROM raw.bill_detail_vote_tbl d
-      JOIN vote_event ve ON ve.id = ${VOTE_KEY('d')}
+      JOIN vote_event ve ON ve.id = 'CA:' || ${VOTE_KEY('d')}
       LEFT JOIN leg_match lbn ON lbn.chamber = ve.chamber AND lbn.key = lower(btrim(d.legislator_name))
       ON CONFLICT (vote_event_id, legislator_name) DO NOTHING;`,
 
@@ -205,11 +208,11 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
     sql: `
       INSERT INTO committee_hearing (id, bill_id, committee_id, location_code, committee_type,
                                     committee_nr, hearing_date, source)
-      SELECT ch.bill_id || ':' || ch.location_code || ':' || ch.hearing_date, ch.bill_id,
-             (CASE WHEN loc.location_type = 'B' THEN ch.location_code END),
+      SELECT 'CA:' || ch.bill_id || ':' || ch.location_code || ':' || ch.hearing_date, 'CA:' || ch.bill_id,
+             (CASE WHEN loc.location_type = 'B' THEN 'CA:' || ch.location_code END),
              ch.location_code, ch.committee_type, ch.committee_nr, ch.hearing_date::timestamp, 'pubinfo'
       FROM raw.committee_hearing_tbl ch
-      JOIN bill b ON b.id = ch.bill_id
+      JOIN bill b ON b.id = 'CA:' || ch.bill_id
       LEFT JOIN tmp_loc loc ON loc.location_code = ch.location_code
       ON CONFLICT (id) DO NOTHING;`,
   },
@@ -220,7 +223,7 @@ export function normalizeSteps(sessionYear: string): { label: string; sql: strin
     sql: `
       UPDATE district d SET current_legislator_id = l.id
       FROM legislator l
-      WHERE l.chamber = d.chamber AND l.district = d.number AND l.active = true;`,
+      WHERE d.state = 'CA' AND l.state = 'CA' AND l.chamber = d.chamber AND l.district = d.number AND l.active = true;`,
   },
   ];
 }

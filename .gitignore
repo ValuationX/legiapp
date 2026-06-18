@@ -16,6 +16,7 @@ build/
 # Full dev DB dump (~29 MB) — not needed in the repo. The PUBLISHED data is the
 # small data-snapshot-focused/ (committed); the live DB is loaded from it.
 /data-snapshot/
+/backup-*/
 
 # env (keep .env.prod / .env out of git — they hold real secrets)
 .env
