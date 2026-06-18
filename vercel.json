@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build -w @legiapp/web",
+  "buildCommand": "npm run build -w @legiapp/web && node scripts/build-api.mjs",
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm install --include=dev",
   "functions": {
