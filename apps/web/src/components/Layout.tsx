@@ -14,6 +14,7 @@ import {
 import * as React from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { SearchPalette } from '@/components/SearchPalette';
+import { useStateCtx } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -92,6 +93,29 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
+function StateSelect() {
+  const { state, setState, states } = useStateCtx();
+  // Hidden until more than one state has data, so the CA-only UI is unchanged.
+  if (states.length < 2) return null;
+  return (
+    <label className="ml-auto flex items-center gap-1.5 text-sm">
+      <span className="hidden text-muted-foreground sm:inline">State</span>
+      <select
+        value={state}
+        onChange={(e) => setState(e.target.value)}
+        aria-label="State"
+        className="h-9 rounded-md border border-input bg-card px-2 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {states.map((s) => (
+          <option key={s.code} value={s.code}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur md:px-6">
@@ -110,6 +134,7 @@ function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: 
         <span className="truncate">Search members, bills, committees…</span>
         <kbd className="ml-auto hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
+      <StateSelect />
     </header>
   );
 }

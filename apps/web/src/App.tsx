@@ -15,6 +15,7 @@ import MapPage from '@/pages/Map';
 import NotFound from '@/pages/NotFound';
 import VoteDetail from '@/pages/VoteDetail';
 import { AccessGate, useAccess } from '@/lib/access';
+import { StateProvider } from '@/lib/state';
 
 export default function App() {
   const { authorized, loading } = useAccess();
@@ -29,7 +30,7 @@ export default function App() {
   if (!authorized) return <AccessGate />;
 
   return (
-    <>
+    <StateProvider>
       <DisclaimerModal />
       <Routes>
         <Route element={<Layout />}>
@@ -47,6 +48,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-    </>
+    </StateProvider>
   );
 }
