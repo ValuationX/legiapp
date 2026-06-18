@@ -119,6 +119,19 @@ export default function ForeignAffairs() {
     queryFn: () => api.foreignAffairs(region ? `region=${region}` : ''),
   });
 
+  const [leaderSort, setLeaderSort] = React.useState<'activity' | 'party'>('activity');
+  const leaders = React.useMemo(() => {
+    const arr = data?.leaders ? [...data.leaders] : [];
+    if (leaderSort === 'party') {
+      const rank = (p?: string | null) => {
+        const c = partyMeta(p ?? '').code;
+        return c === 'D' ? 0 : c === 'R' ? 1 : 2;
+      };
+      arr.sort((a, b) => rank(a.party) - rank(b.party)); // stable sort keeps score order within a party
+    }
+    return arr;
+  }, [data?.leaders, leaderSort]);
+
   const suffix = region ? `-${region}` : '';
 
   // Bills export — one row per measure, sponsors split into in-office vs left-office.
@@ -206,7 +219,7 @@ export default function ForeignAffairs() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           {/* Bills */}
-          <div className="space-y-3">
+          <div className="order-2 space-y-3 lg:order-1">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
             ) : !data?.bills.length ? (
@@ -219,21 +232,49 @@ export default function ForeignAffairs() {
             )}
           </div>
 
-          {/* Leaderboard */}
-          <div className="space-y-4">
+          {/* Leaderboard — shown first on phones so it's not buried under the bills */}
+          <div className="order-1 space-y-4 lg:order-2">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4" /> Most active legislators
-                </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4" /> Most active legislators
+                  </CardTitle>
+                  <div className="inline-flex rounded-md border bg-card p-0.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setLeaderSort('activity')}
+                      className={cn(
+                        'rounded px-2 py-0.5 font-medium transition-colors',
+                        leaderSort === 'activity'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Activity
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLeaderSort('party')}
+                      className={cn(
+                        'rounded px-2 py-0.5 font-medium transition-colors',
+                        leaderSort === 'party'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      Party
+                    </button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-0.5">
                 {isLoading ? (
                   <Skeleton className="h-40 w-full" />
-                ) : !data?.leaders.length ? (
+                ) : !leaders.length ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">No data.</p>
                 ) : (
-                  data.leaders.map((l, i) => {
+                  leaders.map((l, i) => {
                     const p = partyMeta(l.party);
                     const lvl = alignmentMeta(l.level);
                     return (

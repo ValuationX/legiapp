@@ -17,6 +17,7 @@ export default function Legislators() {
   const [ukraine, setUkraine] = React.useState('');
   const [q, setQ] = React.useState('');
   const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
+  const [sort, setSort] = React.useState<'district' | 'party' | 'name'>('district');
 
   // Only 120 members total — fetch all matching and render without pagination.
   const qs = new URLSearchParams({ pageSize: '200' });
@@ -34,6 +35,22 @@ export default function Legislators() {
     queryFn: () => api.legislators(qs.toString()),
   });
   const items = data?.items ?? [];
+
+  const sorted = React.useMemo(() => {
+    const rank = (p?: string | null) => {
+      const c = partyMeta(p ?? '').code;
+      return c === 'D' ? 0 : c === 'R' ? 1 : 2;
+    };
+    const arr = [...items];
+    if (sort === 'party') {
+      arr.sort((a, b) => rank(a.party) - rank(b.party) || (a.lastName ?? '').localeCompare(b.lastName ?? ''));
+    } else if (sort === 'name') {
+      arr.sort((a, b) => (a.lastName ?? '').localeCompare(b.lastName ?? ''));
+    } else {
+      arr.sort((a, b) => (a.chamber ?? '').localeCompare(b.chamber ?? '') || (a.district ?? 0) - (b.district ?? 0));
+    }
+    return arr;
+  }, [items, sort]);
 
   return (
     <div>
@@ -68,6 +85,16 @@ export default function Legislators() {
           <option value="mixed">Ukraine: Mixed</option>
           <option value="unknown">Ukraine: Unknown</option>
         </Select>
+        <Select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as 'district' | 'party' | 'name')}
+          title="Sort order"
+          className="sm:ml-auto"
+        >
+          <option value="district">Sort: District</option>
+          <option value="party">Sort: Party</option>
+          <option value="name">Sort: Name</option>
+        </Select>
       </div>
 
       {!isLoading && items.length > 0 ? <Composition items={items} /> : null}
@@ -78,7 +105,7 @@ export default function Legislators() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
-            : items.map((l) => <MemberGalleryCard key={l.id} l={l} />)}
+            : sorted.map((l) => <MemberGalleryCard key={l.id} l={l} />)}
           {!isLoading && items.length === 0 ? (
             <p className="col-span-full py-10 text-center text-sm text-muted-foreground">No legislators match.</p>
           ) : null}
@@ -100,7 +127,7 @@ export default function Legislators() {
               {isLoading ? (
                 <LoadingRows rows={10} cols={6} />
               ) : (
-                items.map((l) => (
+                sorted.map((l) => (
                   <TR key={l.id}>
                     <TD>
                       <MemberCell id={l.id} name={l.fullName} photoUrl={l.photoUrl} party={l.party} chamber={l.chamber} />
