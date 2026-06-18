@@ -8,6 +8,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Skeleton } fro
 import { api } from '@/lib/api';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { alignmentMeta, formatDate, partyMeta } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 function SponsorChip({ s }: { s: FaSponsor }) {
@@ -117,6 +118,7 @@ export default function ForeignAffairs() {
   const [params, setParams] = useSearchParams();
   const region = params.get('region') ?? '';
   const setRegion = (r: string) => setParams(r ? { region: r } : {}, { replace: true });
+  const sl = useStateLabels();
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['foreign-affairs', region],
     queryFn: () => api.foreignAffairs(region ? `region=${region}` : ''),
@@ -198,7 +200,7 @@ export default function ForeignAffairs() {
     <div>
       <PageHeader
         title="Ukraine & Foreign Affairs"
-        subtitle="Ukraine and Ukraine-adjacent California measures across the 2021–2026 sessions — who authored, coauthored, and signed on, including allies who have since left office."
+        subtitle={`Ukraine and Ukraine-adjacent ${sl.name} measures across recent sessions — who authored, coauthored, and signed on, including allies who have since left office.`}
       >
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportBills} disabled={!visibleBills.length}>

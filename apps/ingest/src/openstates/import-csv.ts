@@ -41,6 +41,7 @@ export async function importBillsFromCsv(
   topDirs: string[],
   apply: boolean,
   currentSessionYear: string,
+  rosterPids: Set<string>,
 ): Promise<{ parsed: number; fa: number; recent: number; total: number }> {
   const bills = new Map<string, OsBill>();
 
@@ -137,8 +138,10 @@ export async function importBillsFromCsv(
       await client.query(
         `INSERT INTO sponsorship (bill_id, legislator_id, legislator_name, type, source)
          VALUES ($1,$2,$3,$4::sponsor_type,'openstates') ON CONFLICT (bill_id, legislator_name, type) DO NOTHING`,
-        [id, sp.personId ? `${st.code}:${currentSessionYear}:os:${sp.personId}` : null, sp.name || '?',
-         sp.primary ? 'primary' : 'co'],
+        // Only link to a legislator row that exists (current roster); historical
+        // sponsors who left office keep name-only (FK is enforced).
+        [id, sp.personId && rosterPids.has(sp.personId) ? `${st.code}:${currentSessionYear}:os:${sp.personId}` : null,
+         sp.name || '?', sp.primary ? 'primary' : 'co'],
       );
     }
     for (const region of b.regions) {

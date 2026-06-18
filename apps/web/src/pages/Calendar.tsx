@@ -7,6 +7,7 @@ import { Badge, Card, CardContent, Select, Skeleton } from '@/components/ui/prim
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { calendarTypeMeta, formatCalendarDate, formatDayChip, monthKey } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All event types' },
@@ -95,6 +96,7 @@ export default function Calendar() {
   const [type, setType] = React.useState('');
   const [scope, setScope] = React.useState<'upcoming' | 'all'>('upcoming');
   const [deadlinesOnly, setDeadlinesOnly] = React.useState(false);
+  const sl = useStateLabels();
 
   const qs = new URLSearchParams();
   if (type) qs.set('type', type);
@@ -137,7 +139,7 @@ export default function Calendar() {
     <div>
       <PageHeader
         title="Legislative Calendar"
-        subtitle="Key 2025–2026 legislative deadlines and California statewide election milestones — your windows to influence a bill's fate."
+        subtitle={`Key legislative deadlines and ${sl.name} statewide election milestones — your windows to influence a bill's fate.`}
       >
         {events.length ? <SourceBadge source="senate.ca.gov · sos.ca.gov" lastVerified={latestVerified} /> : null}
       </PageHeader>

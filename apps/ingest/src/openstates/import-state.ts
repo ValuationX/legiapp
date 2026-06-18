@@ -57,11 +57,19 @@ const SEARCH_TERMS: Record<string, string[]> = {
 interface PersonYaml {
   id?: string;
   name?: string;
-  party?: string;
+  party?: string | { name?: string; end_date?: string }[];
   email?: string;
   image?: string;
   offices?: { classification?: string; address?: string; voice?: string }[];
   roles?: { type?: string; district?: string; end_date?: string }[];
+}
+
+// OpenStates people YAML stores party as a list of {name, end_date?} (NY uses fusion
+// lines like "Democratic/Working Families"); take the current (no end_date) entry.
+function partyName(p: PersonYaml['party']): string | null {
+  if (typeof p === 'string') return p || null;
+  if (Array.isArray(p)) return p.find((x) => !x.end_date)?.name ?? p[0]?.name ?? null;
+  return null;
 }
 
 // ── Legislators (current roster) from the public People repo ──────────────────
@@ -72,6 +80,7 @@ async function importLegislators(client: pg.Client | null, st: StateConfig, sess
   const files = ((await res.json()) as any[]).filter((f) => f.type === 'file' && f.name.endsWith('.yml'));
   let count = 0;
   const byChamber: Record<string, number> = { assembly: 0, senate: 0 };
+  const pids = new Set<string>();
   for (const f of files) {
     if (!f.download_url) continue;
     const raw = await fetch(f.download_url, { headers: { 'User-Agent': 'legiapp-ingest' } });
@@ -83,6 +92,7 @@ async function importLegislators(client: pg.Client | null, st: StateConfig, sess
     const districtNum = Number.parseInt(role.district ?? '', 10);
     const pid = ocdShort(y.id);
     if (!pid) continue;
+    pids.add(pid);
     const offices = y.offices ?? [];
     const cap = offices.find((o) => o.classification === 'capitol') ?? offices[0];
     const photo = y.image && /^https?:\/\//.test(y.image) ? y.image : null;
@@ -97,14 +107,25 @@ async function importLegislators(client: pg.Client | null, st: StateConfig, sess
            last_verified=now()`,
         [legId(st, sessionYear, pid), st.code, pid, sessionYear, chamber,
          Number.isFinite(districtNum) ? districtNum : null, role.district ?? null,
-         y.name ?? '(Unknown)', lastName(y.name), y.party ?? null, y.email ?? null,
+         y.name ?? '(Unknown)', lastName(y.name), partyName(y.party), y.email ?? null,
          cap?.voice ?? null, cap?.address ?? null, photo],
       );
     }
     byChamber[chamber] = (byChamber[chamber] ?? 0) + 1;
     count++;
   }
-  return { count, byChamber };
+  return { count, byChamber, pids };
+}
+
+// Valid roster person-ids already in the DB — used when SKIP_LEGS=1 so sponsorship
+// FKs still resolve without re-fetching the roster.
+async function rosterPidsFromDb(client: pg.Client | null, st: StateConfig): Promise<Set<string>> {
+  if (!client) return new Set();
+  const r = await client.query(
+    `SELECT source_person_id AS pid FROM legislator WHERE state = $1 AND source_person_id IS NOT NULL`,
+    [st.code],
+  );
+  return new Set((r.rows as any[]).map((x) => x.pid));
 }
 
 // ── Bills (focused: FA 2022+ across sessions, then recent active) ─────────────
@@ -114,6 +135,7 @@ async function upsertBill(
   b: any,
   region: string | null,
   currentSessionYear: string,
+  rosterPids: Set<string>,
 ) {
   const identifier: string = b.identifier;
   if (!identifier || !b.session) return null;
@@ -139,8 +161,8 @@ async function upsertBill(
       await client.query(
         `INSERT INTO sponsorship (bill_id, legislator_id, legislator_name, type, source)
          VALUES ($1,$2,$3,$4::sponsor_type,'openstates') ON CONFLICT (bill_id, legislator_name, type) DO NOTHING`,
-        [id, pid ? legId(st, currentSessionYear, pid) : null, sp.name ?? sp.person?.name ?? '?',
-         sp.classification === 'primary' || sp.primary ? 'primary' : 'co'],
+        [id, pid && rosterPids.has(pid) ? legId(st, currentSessionYear, pid) : null,
+         sp.name ?? sp.person?.name ?? '?', sp.classification === 'primary' || sp.primary ? 'primary' : 'co'],
       );
     }
     // tag the foreign-affairs region (precise re-tagging happens in the FA step)
@@ -155,7 +177,7 @@ async function upsertBill(
   return id;
 }
 
-async function importBills(client: pg.Client | null, st: StateConfig, sessionYear: string) {
+async function importBills(client: pg.Client | null, st: StateConfig, sessionYear: string, rosterPids: Set<string>) {
   const seen = new Set<string>();
   let fa = 0;
   let recent = 0;
@@ -169,7 +191,7 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
         const id = billId(st, b.session, b.identifier ?? '');
         if (seen.has(id)) continue;
         seen.add(id);
-        await upsertBill(client, st, b, region.key, sessionYear);
+        await upsertBill(client, st, b, region.key, sessionYear, rosterPids);
         fa++;
       }
     }
@@ -182,7 +204,7 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
     const id = billId(st, b.session ?? '', b.identifier ?? '');
     if (seen.has(id)) continue;
     seen.add(id);
-    await upsertBill(client, st, b, null, sessionYear);
+    await upsertBill(client, st, b, null, sessionYear, rosterPids);
     recent++;
   }
   return { fa, recent, total: seen.size };
@@ -200,15 +222,27 @@ export async function runStateImport(code: string): Promise<void> {
   console.log(`${DRY ? '[DRY RUN] ' : ''}Importing ${st.name} (${st.code})…`);
   const client = DRY ? null : await connectClient();
   try {
+    let rosterPids = new Set<string>();
     if (process.env.SKIP_LEGS !== '1') {
       const legs = await importLegislators(client, st, sessionYear);
+      rosterPids = legs.pids;
       console.log(`  legislators: ${legs.count}  (assembly ${legs.byChamber.assembly} / senate ${legs.byChamber.senate})`);
     } else {
-      console.log('  legislators: skipped (SKIP_LEGS=1)');
+      rosterPids = await rosterPidsFromDb(client, st);
+      console.log(`  legislators: skipped (SKIP_LEGS=1; ${rosterPids.size} existing in DB)`);
+    }
+    if (!DRY && client) {
+      // Clear this state's existing foreign-affairs tags so re-runs don't accumulate
+      // duplicates (bill_subject has no unique constraint; tags are re-added below).
+      await client.query(
+        `DELETE FROM bill_subject WHERE source = 'foreign-affairs'
+           AND bill_id IN (SELECT id FROM bill WHERE state = $1)`,
+        [st.code],
+      );
     }
     const bills = csvDirs.length
-      ? await importBillsFromCsv(client, st, csvDirs, !DRY, sessionYear)
-      : await importBills(client, st, sessionYear);
+      ? await importBillsFromCsv(client, st, csvDirs, !DRY, sessionYear, rosterPids)
+      : await importBills(client, st, sessionYear, rosterPids);
     console.log(`  bills: ${bills.total}  (foreign-affairs ${bills.fa} + recent ${bills.recent})`);
     console.log(DRY ? '[DRY RUN] no writes — set IMPORT_APPLY=1 to load.' : `✓ ${st.code} imported.`);
   } finally {

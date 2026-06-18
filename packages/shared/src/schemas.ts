@@ -313,7 +313,7 @@ export interface Paginated<T> {
 
 const pageParams = {
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(200).default(25),
+  pageSize: z.coerce.number().int().min(1).max(300).default(25),
 };
 
 export const LegislatorQuery = z.object({

@@ -8,6 +8,7 @@ import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { chamberLabel, partyMeta } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 export default function Legislators() {
@@ -18,9 +19,10 @@ export default function Legislators() {
   const [q, setQ] = React.useState('');
   const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
   const [sort, setSort] = React.useState<'district' | 'party' | 'name'>('district');
+  const sl = useStateLabels();
 
-  // Only 120 members total — fetch all matching and render without pagination.
-  const qs = new URLSearchParams({ pageSize: '200' });
+  // Roster fits one page (largest state is PA at 253) — fetch all, render without pagination.
+  const qs = new URLSearchParams({ pageSize: '300' });
   if (chamber) qs.set('chamber', chamber);
   if (party) qs.set('party', party);
   if (reelection) qs.set('reelectionYear', reelection);
@@ -54,7 +56,7 @@ export default function Legislators() {
 
   return (
     <div>
-      <PageHeader title="Legislators" subtitle="All 120 members of the California Assembly and Senate.">
+      <PageHeader title="Legislators" subtitle={`All ${sl.seatTotal} members of the ${sl.name} ${sl.lowerLabel} and ${sl.upperLabel}.`}>
         <div className="inline-flex rounded-md border bg-card p-1">
           <ViewBtn active={view === 'gallery'} onClick={() => setView('gallery')} icon={LayoutGrid} />
           <ViewBtn active={view === 'table'} onClick={() => setView('table')} icon={TableIcon} />

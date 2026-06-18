@@ -5,6 +5,7 @@ import { ErrorState, PageHeader, SourceBadge, StatusBadge } from '@/components/c
 import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { calendarTypeMeta, chamberLabel, formatCalendarDate, formatDate } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 
 function Stat({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: React.ReactNode }) {
   return (
@@ -28,12 +29,13 @@ export default function Dashboard() {
   const cmtes = useQuery({ queryKey: ['committees-all'], queryFn: () => api.committees('') });
 
   const fresh = week.data?.dataFreshness?.[0];
+  const sl = useStateLabels();
 
   return (
     <div>
       <PageHeader
         title="This Week"
-        subtitle="Upcoming hearings and recently moved bills across the California Legislature."
+        subtitle={`Upcoming hearings and recently moved bills across the ${sl.name} Legislature.`}
       >
         {fresh ? <SourceBadge source={fresh.source} lastVerified={fresh.lastVerified} /> : null}
       </PageHeader>
@@ -173,8 +175,8 @@ export default function Dashboard() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        {cmtes.data ? `${cmtes.data.length} committees · ` : ''}Data normalized from the official California
-        Legislature PUBINFO dataset.
+        {cmtes.data ? `${cmtes.data.length} committees · ` : ''}Data for {sl.name} normalized from{' '}
+        {sl.name === 'California' ? 'the official California Legislature PUBINFO dataset' : 'the Open States project'}.
       </p>
     </div>
   );

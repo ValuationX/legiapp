@@ -80,7 +80,7 @@ export async function miscRoutes(app: FastifyInstance) {
        LIMIT 8`,
     );
     const dataFreshness = await query(
-      `SELECT 'pubinfo' AS source,
+      `SELECT (SELECT source FROM bill WHERE state = '${stateLit}' GROUP BY source ORDER BY count(*) DESC LIMIT 1) AS source,
               (SELECT max(last_verified) FROM bill WHERE state = '${stateLit}') AS "lastVerified",
               (SELECT count(*)::int FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')) AS records`,
     );

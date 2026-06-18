@@ -71,3 +71,19 @@ export function useStateCtx(): StateCtx {
   if (!ctx) throw new Error('useStateCtx must be used within StateProvider');
   return ctx;
 }
+
+/** Display labels for the active state, with CA fallbacks (so copy never reads
+ * "undefined" before the registry loads). Drives state-aware page headers/maps. */
+export function useStateLabels() {
+  const { current } = useStateCtx();
+  return {
+    name: current?.name ?? 'California',
+    lowerLabel: current?.lowerLabel ?? 'Assembly',
+    upperLabel: current?.upperLabel ?? 'Senate',
+    lowerShort: current?.lowerShort ?? 'AD',
+    upperShort: current?.upperShort ?? 'SD',
+    seatTotal: (current?.lowerSeats ?? 80) + (current?.upperSeats ?? 40),
+    mapCenter: current?.mapCenter ?? ([37.3, -119.4] as [number, number]),
+    mapZoom: current?.mapZoom ?? 6,
+  };
+}

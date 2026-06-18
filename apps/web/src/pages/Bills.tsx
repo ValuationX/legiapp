@@ -13,6 +13,7 @@ import {
 import { Input, Select } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel, formatDate } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 
 export default function Bills() {
@@ -23,6 +24,7 @@ export default function Bills() {
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(1);
   const pageSize = 25;
+  const sl = useStateLabels();
 
   React.useEffect(() => setPage(1), [chamber, measureType, status, subject, q]);
 
@@ -42,7 +44,7 @@ export default function Bills() {
 
   return (
     <div>
-      <PageHeader title="Bills" subtitle="Measures in the 2025–2026 California legislative session." />
+      <PageHeader title="Bills" subtitle={`Measures in the current ${sl.name} legislative session.`} />
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input

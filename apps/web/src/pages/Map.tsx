@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { MemberAvatar, PageHeader, PartyBadge } from '@/components/common';
 import { api, type DistrictCollection, type DistrictFeature } from '@/lib/api';
 import { partyColor } from '@/lib/format';
+import { useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 type Chamber = 'assembly' | 'senate';
@@ -25,6 +26,7 @@ export default function MapPage() {
   const [picked, setPicked] = React.useState<{ assembly?: DistrictFeature; senate?: DistrictFeature } | null>(
     null,
   );
+  const sl = useStateLabels();
 
   const asm = useQuery({ queryKey: ['districts', 'assembly'], queryFn: () => api.districts('assembly') });
   const sen = useQuery({ queryKey: ['districts', 'senate'], queryFn: () => api.districts('senate') });
@@ -61,7 +63,7 @@ export default function MapPage() {
     <div>
       <PageHeader
         title="District Map"
-        subtitle="Click anywhere in California to see its Assembly member and State Senator."
+        subtitle={`Click anywhere in ${sl.name} to see its ${sl.lowerLabel} member and State Senator.`}
       >
         <div className="inline-flex rounded-md border bg-card p-1 text-sm">
           {(['assembly', 'senate'] as Chamber[]).map((c) => (
@@ -81,7 +83,7 @@ export default function MapPage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="overflow-hidden rounded-lg border bg-card" style={{ height: '72vh' }}>
-          <MapContainer center={[37.3, -119.4]} zoom={6} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+          <MapContainer key={sl.name} center={sl.mapCenter} zoom={sl.mapZoom} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
