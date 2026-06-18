@@ -51,6 +51,9 @@ function BillCard({ b }: { b: ForeignAffairsBill }) {
             {b.identifier}
           </Link>
           <Badge className="bg-secondary text-secondary-foreground">{b.session}</Badge>
+          {b.chamberOfOrigin ? (
+            <Badge className="bg-secondary capitalize text-secondary-foreground">{b.chamberOfOrigin}</Badge>
+          ) : null}
           {b.regions.map((r) => (
             <Badge key={r} className="bg-dem-soft text-dem-fg ring-1 ring-dem/25 capitalize">
               {r}
@@ -120,8 +123,16 @@ export default function ForeignAffairs() {
   });
 
   const [leaderSort, setLeaderSort] = React.useState<'activity' | 'party'>('activity');
+  const [chamber, setChamber] = React.useState<'' | 'assembly' | 'senate'>('');
+
+  const visibleBills = React.useMemo(
+    () => (data?.bills ?? []).filter((b) => !chamber || b.chamberOfOrigin === chamber),
+    [data?.bills, chamber],
+  );
+
   const leaders = React.useMemo(() => {
-    const arr = data?.leaders ? [...data.leaders] : [];
+    let arr = data?.leaders ? [...data.leaders] : [];
+    if (chamber) arr = arr.filter((l) => l.chamber === chamber);
     if (leaderSort === 'party') {
       const rank = (p?: string | null) => {
         const c = partyMeta(p ?? '').code;
@@ -130,14 +141,15 @@ export default function ForeignAffairs() {
       arr.sort((a, b) => rank(a.party) - rank(b.party)); // stable sort keeps score order within a party
     }
     return arr;
-  }, [data?.leaders, leaderSort]);
+  }, [data?.leaders, leaderSort, chamber]);
 
-  const suffix = region ? `-${region}` : '';
+  const suffixParts = [region, chamber].filter(Boolean);
+  const suffix = suffixParts.length ? `-${suffixParts.join('-')}` : '';
 
   // Bills export — one row per measure, sponsors split into in-office vs left-office.
   const exportBills = () => {
     if (!data) return;
-    const rows = data.bills.map((b) => [
+    const rows = visibleBills.map((b) => [
       b.identifier,
       b.session,
       formatDate(b.introducedDate),
@@ -162,7 +174,7 @@ export default function ForeignAffairs() {
   // Allies export — the outreach list: one row per legislator with alignment + contact.
   const exportAllies = () => {
     if (!data) return;
-    const rows = data.leaders.map((l) => [
+    const rows = leaders.map((l) => [
       l.name,
       alignmentMeta(l.level).label,
       l.score,
@@ -189,17 +201,17 @@ export default function ForeignAffairs() {
         subtitle="Ukraine and Ukraine-adjacent California measures across the 2021–2026 sessions — who authored, coauthored, and signed on, including allies who have since left office."
       >
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportBills} disabled={!data?.bills.length}>
+          <Button variant="outline" size="sm" onClick={exportBills} disabled={!visibleBills.length}>
             <Download className="h-4 w-4" /> Bills CSV
           </Button>
-          <Button variant="outline" size="sm" onClick={exportAllies} disabled={!data?.leaders.length}>
+          <Button variant="outline" size="sm" onClick={exportAllies} disabled={!leaders.length}>
             <Download className="h-4 w-4" /> Allies CSV
           </Button>
         </div>
       </PageHeader>
 
       {/* Region chips — Ukraine & adjacent first */}
-      <div className="mb-4 flex flex-wrap items-center gap-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <RegionChip active={region === ''} onClick={() => setRegion('')} label="All" />
         {data?.regions
           .filter((r) => r.count > 0)
@@ -214,6 +226,33 @@ export default function ForeignAffairs() {
           ))}
       </div>
 
+      {/* Chamber filter — separate Senate vs Assembly across bills and the leaderboard */}
+      <div className="mb-4 flex items-center gap-2 text-xs">
+        <span className="font-medium text-muted-foreground">Chamber:</span>
+        <div className="inline-flex rounded-md border bg-card p-0.5">
+          {(
+            [
+              ['', 'Both'],
+              ['assembly', 'Assembly'],
+              ['senate', 'Senate'],
+            ] as const
+          ).map(([val, lbl]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setChamber(val)}
+              aria-pressed={chamber === val}
+              className={cn(
+                'rounded px-2.5 py-1 font-medium transition-colors',
+                chamber === val ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isError ? (
         <ErrorState error={error} />
       ) : (
@@ -222,13 +261,17 @@ export default function ForeignAffairs() {
           <div className="order-2 space-y-3 lg:order-1">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
-            ) : !data?.bills.length ? (
+            ) : !visibleBills.length ? (
               <EmptyState
                 title="No measures found"
-                hint="Run `npm run ingest -- foreign-affairs` (and the historical PUBINFO sessions) to populate the tracker."
+                hint={
+                  chamber
+                    ? `No ${chamber === 'senate' ? 'Senate' : 'Assembly'} measures for the current filters.`
+                    : 'Run `npm run ingest -- foreign-affairs` (and the historical PUBINFO sessions) to populate the tracker.'
+                }
               />
             ) : (
-              data.bills.map((b) => <BillCard key={b.id} b={b} />)
+              visibleBills.map((b) => <BillCard key={b.id} b={b} />)
             )}
           </div>
 
@@ -298,6 +341,7 @@ export default function ForeignAffairs() {
                           </div>
                           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                             <span>
+                              {l.chamber ? `${l.chamber === 'senate' ? 'Senate' : 'Assembly'} · ` : ''}
                               {l.authored} authored · {l.coauthored} co{l.passed ? ` · ${l.passed} passed` : ''}
                             </span>
                             {!l.inOffice ? (
