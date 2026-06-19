@@ -210,12 +210,65 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
   return { fa, recent, total: seen.size };
 }
 
+// ── Committees + memberships (rosters + chairs) from the People repo ───────────
+async function importCommittees(
+  client: pg.Client | null,
+  st: StateConfig,
+  sessionYear: string,
+  rosterPids: Set<string>,
+) {
+  const dir = `https://api.github.com/repos/openstates/people/contents/data/${st.code.toLowerCase()}/committees`;
+  const res = await fetch(dir, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'legiapp-ingest' } });
+  if (!res.ok) {
+    console.warn(`  committees: GitHub listing ${st.code}: ${res.status} (skipped)`);
+    return { committees: 0, memberships: 0 };
+  }
+  const files = ((await res.json()) as any[]).filter((f) => f.type === 'file' && f.name.endsWith('.yml'));
+  let committees = 0;
+  let memberships = 0;
+  for (const f of files) {
+    if (!f.download_url) continue;
+    const raw = await fetch(f.download_url, { headers: { 'User-Agent': 'legiapp-ingest' } });
+    if (!raw.ok) continue;
+    const c = yaml.load(await raw.text()) as any;
+    if (c?.classification !== 'committee') continue; // skip caucuses / task forces
+    const cid = `${st.code}:cmte:${ocdShort(c.id)}`;
+    const chamber = c.chamber === 'lower' ? 'assembly' : c.chamber === 'upper' ? 'senate' : null;
+    const members = (c.members ?? []) as { name?: string; role?: string; person_id?: string }[];
+    if (!DRY && client) {
+      await client.query(
+        `INSERT INTO committee (id, state, name, chamber, type, source)
+         VALUES ($1,$2,$3,$4::chamber,$5,'openstates')
+         ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, chamber=EXCLUDED.chamber, last_verified=now()`,
+        [cid, st.code, c.name ?? '(Unknown committee)', chamber, chamber ? 'standing' : 'joint'],
+      );
+      await client.query(`DELETE FROM committee_membership WHERE committee_id=$1`, [cid]);
+      for (const m of members) {
+        const pid = ocdShort(m.person_id);
+        const r = (m.role ?? '').toLowerCase();
+        const role = r.includes('vice') ? 'vice_chair' : r.includes('chair') ? 'chair' : 'member';
+        await client.query(
+          `INSERT INTO committee_membership (committee_id, legislator_id, role, source)
+           VALUES ($1,$2,$3::committee_role,'openstates') ON CONFLICT (committee_id, legislator_id) DO NOTHING`,
+          [cid, pid && rosterPids.has(pid) ? legId(st, sessionYear, pid) : null, role],
+        );
+        memberships++;
+      }
+    } else {
+      memberships += members.length;
+    }
+    committees++;
+  }
+  return { committees, memberships };
+}
+
 export async function runStateImport(code: string): Promise<void> {
   const st = getState(code);
   if (!st) throw new Error(`Unknown state: ${code}`);
   if (st.hasPubinfo) throw new Error(`${st.code} uses PUBINFO — run \`pubinfo\`, not the state importer.`);
   const csvDirs = (process.env.OS_CSV_DIRS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!csvDirs.length && !process.env.OPENSTATES_API_KEY)
+  const skipBills = process.env.SKIP_BILLS === '1'; // committees + roster only (People repo, no CSV/key)
+  if (!skipBills && !csvDirs.length && !process.env.OPENSTATES_API_KEY)
     throw new Error('OPENSTATES_API_KEY required (or set OS_CSV_DIRS for the bulk-CSV path)');
   const sessionYear = '2025-2026'; // current session for the source-fed states
 
@@ -231,19 +284,27 @@ export async function runStateImport(code: string): Promise<void> {
       rosterPids = await rosterPidsFromDb(client, st);
       console.log(`  legislators: skipped (SKIP_LEGS=1; ${rosterPids.size} existing in DB)`);
     }
-    if (!DRY && client) {
-      // Clear this state's existing foreign-affairs tags so re-runs don't accumulate
-      // duplicates (bill_subject has no unique constraint; tags are re-added below).
-      await client.query(
-        `DELETE FROM bill_subject WHERE source = 'foreign-affairs'
-           AND bill_id IN (SELECT id FROM bill WHERE state = $1)`,
-        [st.code],
-      );
+    if (skipBills) {
+      console.log('  bills: skipped (SKIP_BILLS=1)');
+    } else {
+      if (!DRY && client) {
+        // Clear this state's existing foreign-affairs tags so re-runs don't accumulate
+        // duplicates (bill_subject has no unique constraint; tags are re-added below).
+        await client.query(
+          `DELETE FROM bill_subject WHERE source = 'foreign-affairs'
+             AND bill_id IN (SELECT id FROM bill WHERE state = $1)`,
+          [st.code],
+        );
+      }
+      const bills = csvDirs.length
+        ? await importBillsFromCsv(client, st, csvDirs, !DRY, sessionYear, rosterPids)
+        : await importBills(client, st, sessionYear, rosterPids);
+      console.log(`  bills: ${bills.total}  (foreign-affairs ${bills.fa} + recent ${bills.recent})`);
     }
-    const bills = csvDirs.length
-      ? await importBillsFromCsv(client, st, csvDirs, !DRY, sessionYear, rosterPids)
-      : await importBills(client, st, sessionYear, rosterPids);
-    console.log(`  bills: ${bills.total}  (foreign-affairs ${bills.fa} + recent ${bills.recent})`);
+
+    const cmt = await importCommittees(client, st, sessionYear, rosterPids);
+    console.log(`  committees: ${cmt.committees}  (memberships ${cmt.memberships})`);
+
     console.log(DRY ? '[DRY RUN] no writes — set IMPORT_APPLY=1 to load.' : `✓ ${st.code} imported.`);
   } finally {
     if (client) await client.end();
