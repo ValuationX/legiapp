@@ -23,9 +23,12 @@ function eq(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-/** Constant-time check of a submitted code against the shared ACCESS_CODE. */
+/** Constant-time check of a submitted code against the shared ACCESS_CODE.
+ *  Forgiving of surrounding whitespace and letter case (so e.g. a mobile keyboard
+ *  capitalizing the first letter, or a stray trailing space, doesn't lock people out). */
 export function checkCode(input: string): boolean {
-  return eq(input, ACCESS_CODE);
+  const norm = (s: string) => s.normalize('NFKC').trim().toLowerCase();
+  return eq(norm(input), norm(ACCESS_CODE));
 }
 
 export function setAccessCookie(reply: FastifyReply): void {

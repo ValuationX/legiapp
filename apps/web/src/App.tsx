@@ -1,4 +1,5 @@
-import { Route, Routes } from 'react-router-dom';
+import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
@@ -19,17 +20,53 @@ import NotFound from '@/pages/NotFound';
 import Settings from '@/pages/Settings';
 import VoteDetail from '@/pages/VoteDetail';
 import { AccessGate, useAccess } from '@/lib/access';
-import { SettingsProvider } from '@/lib/settings';
+import { SettingsProvider, useSettings } from '@/lib/settings';
 import { StateProvider, useStateCtx } from '@/lib/state';
 
+/** Welcome / main intro page: a short intro to Bill Aid + the state picker.
+ *  Shown on first visit (no state chosen) and reachable anytime via the logo (/welcome). */
 function StateLanding() {
+  const navigate = useNavigate();
+  const { showForeignAffairs } = useSettings();
+  const features = [
+    { icon: FileText, label: 'Bills', desc: 'Search & track legislation' },
+    { icon: Users, label: 'Legislators', desc: 'Votes & sponsorships' },
+    { icon: Crown, label: 'Leadership', desc: 'Who holds the gavel' },
+    showForeignAffairs
+      ? { icon: Globe, label: 'Foreign Affairs', desc: 'Ukraine & global measures' }
+      : { icon: MapIcon, label: 'District Map', desc: 'Find your reps' },
+  ];
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <div className="mb-7 flex flex-col items-center gap-3 text-center">
-        <Logo size={40} />
-        <p className="text-sm text-muted-foreground">Choose a state to explore its legislature.</p>
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-xl">
+        <div className="mb-8 flex flex-col items-center gap-4 text-center">
+          <Logo size={44} />
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Track your statehouse, clearly.</h1>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            Bill Aid brings bills, legislators, committees, and leadership into one fast, searchable
+            place — built from official public records. Pick a state to begin.
+          </p>
+        </div>
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {features.map((f) => {
+            const Icon = f.icon;
+            return (
+              <div
+                key={f.label}
+                className="flex flex-col items-center gap-1.5 rounded-lg border bg-card px-3 py-4 text-center"
+              >
+                <Icon className="h-5 w-5 text-[#185FA5]" />
+                <div className="text-sm font-medium leading-none">{f.label}</div>
+                <div className="text-[11px] leading-tight text-muted-foreground">{f.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <p className="mb-4 text-center text-sm font-medium">Choose a state to begin</p>
+          <StatePicker onPick={() => navigate('/')} />
+        </div>
       </div>
-      <StatePicker />
     </div>
   );
 }
@@ -41,6 +78,7 @@ function Shell() {
     <>
       <DisclaimerModal />
       <Routes>
+        <Route path="/welcome" element={<StateLanding />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/legislators" element={<Legislators />} />

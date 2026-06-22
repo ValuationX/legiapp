@@ -55,15 +55,19 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
 
   const setState = React.useCallback(
     (code: string) => {
-      if (code === getStateCode()) return;
-      setActiveState(code);
-      setStateRaw(code);
+      // Always record the choice + persist it — even when the picked state is the
+      // one already active (e.g. choosing CA, the default, from the landing page),
+      // otherwise the picker would appear to do nothing. Only the data refetch is
+      // skipped when the state didn't actually change.
       setChosen(true);
       try {
         localStorage.setItem(STORAGE_KEY, code);
       } catch {
         /* ignore */
       }
+      if (code === getStateCode()) return;
+      setActiveState(code);
+      setStateRaw(code);
       // api.ts reads the active state at fetch time, so invalidating refetches
       // every active query under the newly selected state.
       qc.invalidateQueries();

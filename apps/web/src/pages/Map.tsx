@@ -82,7 +82,7 @@ export default function MapPage() {
       </PageHeader>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="overflow-hidden rounded-lg border bg-card" style={{ height: '72vh' }}>
+        <div className="relative isolate overflow-hidden rounded-lg border bg-card" style={{ height: '72vh' }}>
           <MapContainer key={sl.name} center={sl.mapCenter} zoom={sl.mapZoom} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

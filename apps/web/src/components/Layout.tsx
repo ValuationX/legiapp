@@ -57,12 +57,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r bg-card',
-          'transition-[transform,margin] duration-200 ease-in-out md:static',
+          'transition-[transform,margin] duration-200 ease-in-out md:sticky md:top-0 md:h-screen md:self-start',
           open ? 'translate-x-0 md:ml-0' : '-translate-x-full md:-ml-64',
         )}
       >
         <div className="flex items-center justify-between gap-2 border-b px-4 py-4">
-          <Link to="/" className="hover:opacity-80">
+          <Link to="/welcome" className="hover:opacity-80" aria-label="Bill Aid — home">
             <Logo size={30} />
           </Link>
           <button

@@ -73,6 +73,8 @@ export function AccessGate() {
               <Input
                 type="password"
                 autoFocus
+                autoCapitalize="none"
+                spellCheck={false}
                 placeholder="Access code"
                 aria-label="Access code"
                 value={code}
