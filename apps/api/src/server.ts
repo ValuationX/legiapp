@@ -12,6 +12,7 @@ import { calendarRoutes } from './routes/calendar.js';
 import { committeeRoutes } from './routes/committees.js';
 import { districtRoutes } from './routes/districts.js';
 import { foreignAffairsRoutes } from './routes/foreign-affairs.js';
+import { leadershipRoutes } from './routes/leadership.js';
 import { legislatorRoutes } from './routes/legislators.js';
 import { metaRoutes } from './routes/meta.js';
 import { miscRoutes } from './routes/misc.js';
@@ -55,6 +56,7 @@ export function buildServer() {
 
   app.register(accessRoutes);
   app.register(legislatorRoutes);
+  app.register(leadershipRoutes);
   app.register(billRoutes);
   app.register(committeeRoutes);
   app.register(voteRoutes);
