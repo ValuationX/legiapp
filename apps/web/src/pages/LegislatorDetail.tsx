@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Mail, MapPin, Phone } from 'lucide-react';
+import { FA_REGION_BY_KEY } from '@legiapp/shared';
+import { ArrowLeft, Building2, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import * as React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ErrorState, MemberAvatar, PartyBadge, SourceBadge, StatusBadge } from '@/components/common';
@@ -18,6 +19,7 @@ export default function LegislatorDetail() {
 
   if (leg.isError) return <ErrorState error={leg.error} />;
   const l = leg.data;
+  const faBills = (bills.data ?? []).filter((b) => (b.faRegions?.length ?? 0) > 0);
 
   return (
     <div>
@@ -172,6 +174,42 @@ export default function LegislatorDetail() {
 
         {/* Activity */}
         <div>
+          {faBills.length > 0 ? (
+            <Card className="mb-4 border-primary/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" /> Ukraine &amp; Foreign-Affairs bills ({faBills.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {faBills.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex flex-wrap items-center gap-2 border-b pb-2 text-sm last:border-0 last:pb-0"
+                  >
+                    <Link to={`/bills/${b.id}`} className="font-semibold text-primary hover:underline">
+                      {b.identifier}
+                    </Link>
+                    <Badge
+                      className={
+                        b.sponsorType === 'primary'
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                          : 'bg-secondary text-secondary-foreground'
+                      }
+                    >
+                      {b.sponsorType === 'primary' ? 'Lead author' : 'Co-author'}
+                    </Badge>
+                    {(b.faRegions ?? []).map((r) => (
+                      <Badge key={r} className="bg-dem-soft text-dem-fg ring-1 ring-dem/25">
+                        {FA_REGION_BY_KEY.get(r)?.label ?? r}
+                      </Badge>
+                    ))}
+                    <span className="line-clamp-1 min-w-0 flex-1 text-muted-foreground">{b.title}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
           <div className="mb-3 inline-flex rounded-md border bg-card p-1 text-sm">
             <TabButton active={tab === 'bills'} onClick={() => setTab('bills')}>
               Sponsored bills {l ? `(${l.sponsoredCount})` : ''}

@@ -105,13 +105,17 @@ export async function legislatorRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const limit = Math.min(Number((req.query as { limit?: string }).limit ?? 100), 300);
     return query(
-      `SELECT DISTINCT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
+      `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
               b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",
               b.last_action_date AS "lastActionDate", b.last_action_description AS "lastActionDescription",
-              b.source, b.last_verified AS "lastVerified", b.conflict, s.type AS "sponsorType"
+              b.source, b.last_verified AS "lastVerified", b.conflict,
+              CASE WHEN bool_or(s.type = 'primary') THEN 'primary' ELSE 'co' END AS "sponsorType",
+              COALESCE((SELECT array_agg(bs.subject ORDER BY bs.subject) FROM bill_subject bs
+                        WHERE bs.bill_id = b.id AND bs.source = 'foreign-affairs'), ARRAY[]::text[]) AS "faRegions"
        FROM sponsorship s JOIN bill b ON b.id = s.bill_id
        WHERE s.legislator_id = $1
-       ORDER BY b.last_action_date DESC NULLS LAST
+       GROUP BY b.id
+       ORDER BY max(b.last_action_date) DESC NULLS LAST
        LIMIT $2`,
       [id, limit],
     );

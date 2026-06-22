@@ -116,12 +116,20 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
                   SELECT 1 FROM bill_action a WHERE a.bill_id = s.bill_id
                   AND a.description ~* 'chaptered|approved by the governor'))::int AS passed,
                 count(DISTINCT s.bill_id)::int AS total
-         FROM sponsorship s JOIN legislator l ON l.id = s.legislator_id
-         WHERE l.state = '${stateLit}' AND s.bill_id IN (SELECT bill_id FROM bill_subject WHERE source = 'foreign-affairs' ${leaderFilter})
+         FROM sponsorship s
+         JOIN legislator l ON (
+           l.id = s.legislator_id
+           OR (s.legislator_id IS NULL AND l.state = '${stateLit}' AND l.active
+               AND lower(l.last_name) = lower(split_part(s.legislator_name, ' ', -1))
+               AND l.chamber = (CASE s.house WHEN 'SENATE' THEN 'senate' WHEN 'ASSEMBLY' THEN 'assembly' END)::chamber)
+         )
+         WHERE l.state = '${stateLit}'
+           AND s.bill_id IN (
+             SELECT bs.bill_id FROM bill_subject bs JOIN bill bb ON bb.id = bs.bill_id
+             WHERE bb.state = '${stateLit}' AND bs.source = 'foreign-affairs' ${leaderFilter})
          GROUP BY lower(l.last_name), l.chamber
        ) t
-       ORDER BY score DESC, authored DESC, name
-       LIMIT 40`,
+       ORDER BY score DESC, authored DESC, name`,
       leaderParams,
     );
     const leaders: FaLeader[] = leaderRows.map((l) => ({ ...l, level: alignmentLevel(l.authored, l.score) }));

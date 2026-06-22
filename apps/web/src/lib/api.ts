@@ -57,7 +57,7 @@ async function errorMessage(res: Response): Promise<string> {
   }
 }
 
-export type SponsoredBill = BillSummary & { sponsorType: 'primary' | 'co' };
+export type SponsoredBill = BillSummary & { sponsorType: 'primary' | 'co'; faRegions?: string[] };
 export interface BillFacets {
   statuses: string[];
   measureTypes: string[];

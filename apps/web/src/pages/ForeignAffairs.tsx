@@ -4,7 +4,7 @@ import { Download, Flag, Globe, Mail, Trophy, UserX } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '@/components/common';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { alignmentMeta, formatDate, partyMeta } from '@/lib/format';
@@ -126,6 +126,7 @@ export default function ForeignAffairs() {
 
   const [leaderSort, setLeaderSort] = React.useState<'activity' | 'party'>('activity');
   const [chamber, setChamber] = React.useState<'' | 'assembly' | 'senate'>('');
+  const [leaderQuery, setLeaderQuery] = React.useState('');
 
   const visibleBills = React.useMemo(
     () => (data?.bills ?? []).filter((b) => !chamber || b.chamberOfOrigin === chamber),
@@ -135,6 +136,10 @@ export default function ForeignAffairs() {
   const leaders = React.useMemo(() => {
     let arr = data?.leaders ? [...data.leaders] : [];
     if (chamber) arr = arr.filter((l) => l.chamber === chamber);
+    if (leaderQuery.trim()) {
+      const ql = leaderQuery.trim().toLowerCase();
+      arr = arr.filter((l) => l.name.toLowerCase().includes(ql));
+    }
     if (leaderSort === 'party') {
       const rank = (p?: string | null) => {
         const c = partyMeta(p ?? '').code;
@@ -143,7 +148,7 @@ export default function ForeignAffairs() {
       arr.sort((a, b) => rank(a.party) - rank(b.party)); // stable sort keeps score order within a party
     }
     return arr;
-  }, [data?.leaders, leaderSort, chamber]);
+  }, [data?.leaders, leaderSort, chamber, leaderQuery]);
 
   const suffixParts = [region, chamber].filter(Boolean);
   const suffix = suffixParts.length ? `-${suffixParts.join('-')}` : '';
@@ -312,6 +317,13 @@ export default function ForeignAffairs() {
                     </button>
                   </div>
                 </div>
+                <Input
+                  value={leaderQuery}
+                  onChange={(e) => setLeaderQuery(e.target.value)}
+                  placeholder="Search legislators by name…"
+                  className="mt-2 h-8 text-sm"
+                  aria-label="Search legislators"
+                />
               </CardHeader>
               <CardContent className="space-y-0.5">
                 {isLoading ? (
