@@ -26,15 +26,8 @@ export default function About() {
           <CardContent className="space-y-3 p-6 text-sm leading-relaxed text-muted-foreground">
             <h2 className="text-base font-semibold text-foreground">About the author</h2>
             <p>
-              Bill Aid was created by <span className="font-medium text-foreground">Arseniy Shafran</span>, a
-              business student at Monmouth University and the founder and president of the Monmouth Finance
-              Society. He has presented research on financialization and inequality at the John Jay–New School
-              Conference on Contemporary Political Economy in New York, and is interested in development
-              economics.
-            </p>
-            <p>
-              He built Bill Aid to make legislative research faster and more accessible for advocacy
-              organizations tracking the issues they care about.
+              Bill Aid is built and maintained by a Nova Ukraine advocate, to make legislative research faster
+              and more accessible for the people and organizations tracking the issues they care about.
             </p>
           </CardContent>
         </Card>

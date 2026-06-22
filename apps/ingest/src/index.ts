@@ -24,7 +24,7 @@ try {
   else if (cmd === 'contacts') await runContacts();
   else if (cmd === 'subjects') await runSubjects();
   else if (cmd === 'foreign-affairs') await runForeignAffairs();
-  else if (cmd === 'districts') await runDistricts();
+  else if (cmd === 'districts') await runDistricts(process.argv[3] ?? 'CA'); // e.g. `districts NY`
   else if (cmd === 'calendar') await runCalendar();
   else if (cmd === 'state') await runStateImport(process.argv[3] ?? ''); // e.g. `state NY` — Open States primary import
   else if (cmd === 'augment-ca') await runAugmentCa(); // add missing CA foreign-affairs bills from Open States CSVs
