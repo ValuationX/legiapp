@@ -19,7 +19,7 @@ import {
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Logo } from '@/components/Logo';
+import { Logo, LogoMark } from '@/components/Logo';
 import { SearchPalette } from '@/components/SearchPalette';
 import { StatePicker } from '@/components/StatePicker';
 import { useSettings } from '@/lib/settings';
@@ -90,9 +90,6 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             <SettingsIcon className="h-4 w-4 shrink-0" />
             Settings
           </NavLink>
-          <p className="px-3 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-            Aggregates public legislative data — verify anything important against the official record.
-          </p>
         </div>
       </aside>
     </>
@@ -173,6 +170,31 @@ function ThemeToggle() {
   );
 }
 
+function Footer() {
+  const year = new Date().getFullYear();
+  return (
+    <footer className="mt-auto border-t bg-card/30">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between md:px-6">
+        <div className="flex items-center gap-2">
+          <LogoMark size={18} />
+          <span>© {year} Bill Aid — informational research aid; verify against the official record.</span>
+        </div>
+        <nav className="flex items-center gap-4">
+          <Link to="/about" className="transition-colors hover:text-foreground">
+            About
+          </Link>
+          <Link to="/privacy" className="transition-colors hover:text-foreground">
+            Privacy
+          </Link>
+          <Link to="/terms" className="transition-colors hover:text-foreground">
+            Terms
+          </Link>
+        </nav>
+      </div>
+    </footer>
+  );
+}
+
 function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur md:px-6">
@@ -231,6 +253,7 @@ export function Layout() {
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 md:px-6">
           <Outlet />
         </main>
+        <Footer />
       </div>
       <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
     </div>

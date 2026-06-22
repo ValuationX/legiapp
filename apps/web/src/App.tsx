@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
 import { Spinner } from '@/components/ui/primitives';
+import About from '@/pages/About';
 import BillDetail from '@/pages/BillDetail';
 import Bills from '@/pages/Bills';
 import Calendar from '@/pages/Calendar';
@@ -17,7 +18,9 @@ import LegislatorDetail from '@/pages/LegislatorDetail';
 import Legislators from '@/pages/Legislators';
 import MapPage from '@/pages/Map';
 import NotFound from '@/pages/NotFound';
+import Privacy from '@/pages/Privacy';
 import Settings from '@/pages/Settings';
+import Terms from '@/pages/Terms';
 import VoteDetail from '@/pages/VoteDetail';
 import { AccessGate, useAccess } from '@/lib/access';
 import { SettingsProvider, useSettings } from '@/lib/settings';
@@ -93,6 +96,9 @@ function Shell() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/votes/:id" element={<VoteDetail />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
