@@ -1,6 +1,8 @@
-// Tag bills with foreign-affairs region keys (Ukraine, Russia, …) for the tracker.
-// Matched over TITLE + DIGEST only (precision) — incidental country mentions live in
-// the bill body and are excluded. Spans all loaded sessions. Stored in bill_subject
+// Tag CALIFORNIA bills with foreign-affairs region keys (Ukraine, Russia, …) for the
+// tracker. Matched over TITLE + DIGEST + SUMMARY (precision) — incidental country
+// mentions live in the bill body and are excluded. CA-SCOPED: source-fed states
+// (NY/OH/MI/…) get their FA tags from their own importer (apps/ingest/src/openstates),
+// so this never deletes or duplicates another state's tags. Stored in bill_subject
 // with source='foreign-affairs' (the general "Foreign Affairs" umbrella subject for the
 // Bills filter is produced separately by the keyword tagger).
 import { FA_REGIONS, regionPgRegex } from '@legiapp/shared';
@@ -18,14 +20,17 @@ export async function runForeignAffairs(): Promise<{ tags: number; byRegion: Rec
   const runId = runRows[0]!.id;
   try {
     await client.query('BEGIN');
-    await client.query(`DELETE FROM bill_subject WHERE source = $1`, [SOURCE]);
+    await client.query(
+      `DELETE FROM bill_subject WHERE source = $1 AND bill_id IN (SELECT id FROM bill WHERE state = 'CA')`,
+      [SOURCE],
+    );
 
     const byRegion: Record<string, number> = {};
     let tags = 0;
     for (const r of FA_REGIONS) {
       const res = await client.query(
         `INSERT INTO bill_subject (bill_id, subject, source)
-         SELECT b.id, $2, $3 FROM bill b WHERE ${CORPUS} ~* $1`,
+         SELECT b.id, $2, $3 FROM bill b WHERE b.state = 'CA' AND ${CORPUS} ~* $1`,
         [regionPgRegex(r.stems), r.key, SOURCE],
       );
       byRegion[r.key] = res.rowCount ?? 0;
