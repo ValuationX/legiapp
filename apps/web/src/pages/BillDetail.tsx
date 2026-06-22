@@ -30,7 +30,19 @@ export default function BillDetail() {
               </div>
               <p className="mt-1 max-w-3xl text-base text-muted-foreground">{b.title ?? 'Untitled measure'}</p>
             </div>
-            <SourceBadge source={b.source} lastVerified={b.lastVerified} conflict={b.conflict} />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <SourceBadge source={b.source} lastVerified={b.lastVerified} conflict={b.conflict} />
+              {b.id.startsWith('CA:') ? (
+                <a
+                  href={`https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=${b.id.replace(/^[A-Z]{2}:/, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  View full bill on leginfo.ca.gov ↗
+                </a>
+              ) : null}
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
@@ -44,14 +56,6 @@ export default function BillDetail() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm leading-relaxed text-foreground/90">{b.summary}</p>
-                    <a
-                      href={`https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=${b.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
-                    >
-                      Read full text on leginfo ↗
-                    </a>
                   </CardContent>
                 </Card>
               ) : null}
