@@ -199,6 +199,38 @@ GET  /api/alerts  ·  POST /api/alerts  ·  DELETE /api/alerts/:id
 
 ---
 
+## Keeping data current (refresh runbook)
+
+Production serves a **static snapshot**: the deployed app is a read-only API + web
+bundle on Vercel, so **no scheduler runs in production** — data only updates when an
+ingest command is re-run against the (Neon) database. The dashboard shows each state's
+`last_verified` freshness so staleness is visible. All sources are **free**; no paid
+APIs are used. To refresh, point `DATABASE_URL` at the production DB and run:
+
+```bash
+# California — official PUBINFO bulk feed (stable URL; fully automatable):
+DATABASE_URL=<prod> npm run ingest                  # bills/votes/roster/committees/subjects
+DATABASE_URL=<prod> npm run ingest -- foreign-affairs
+DATABASE_URL=<prod> npm run ingest -- calendar CA   # live Senate ICS + curated election dates
+
+# Source-fed states (NY/OH/MI/HI/IA/PA/MA) — from the Open States session CSVs
+# (set OS_CSV_DIRS to that state's session dirs), e.g. for NY:
+OS_CSV_DIRS="…NY dirs…" IMPORT_APPLY=1 DATABASE_URL=<prod> npm run ingest -- state NY    # roster+bills+committees+FA
+OS_CSV_DIRS="…NY dirs…" IMPORT_APPLY=1 DATABASE_URL=<prod> npm run ingest -- votes NY    # roll-call votes
+DATABASE_URL=<prod> npm run ingest -- districts NY   # Census TIGER boundaries
+DATABASE_URL=<prod> npm run ingest -- calendar NY    # curated 2026 election + session dates
+DATABASE_URL=<prod> npm run ingest -- leadership NY  # curated chamber leadership
+```
+
+Each command is idempotent (re-running replaces that state's slice). **Manually-maintained
+data** — refresh ~once per session from official pages, no free feed exists:
+chamber **leadership** (`apps/ingest/src/leadership/data.ts`; CA in
+`apps/ingest/src/scrape/positions-guide.ts`) and the curated per-state **calendar**
+dates (`apps/ingest/src/calendar/data.ts`). Everything else (bills, legislators, votes,
+committees, district boundaries) flows from official/authoritative feeds and refreshes by
+re-running the commands above. A scheduled refresh could run these on free GitHub Actions
+minutes against Neon if the org wants it (not set up yet).
+
 ## Adding another state
 
 The internal schema is state-agnostic; only the **adapters** are CA-specific.
