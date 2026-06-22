@@ -40,7 +40,7 @@ export default function Dashboard() {
         {fresh ? <SourceBadge source={fresh.source} lastVerified={fresh.lastVerified} /> : null}
       </PageHeader>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
         <Stat icon={FileText} label="Bills tracked" value={fresh?.records?.toLocaleString() ?? <Skeleton className="h-7 w-16" />} />
         <Stat icon={Gavel} label="Recently moved" value={week.data ? week.data.recentlyMovedBills.length : <Skeleton className="h-7 w-10" />} />
         <Stat icon={CalendarClock} label="Upcoming hearings" value={week.data ? week.data.upcomingHearings.length : <Skeleton className="h-7 w-10" />} />
@@ -66,7 +66,7 @@ export default function Dashboard() {
           ) : !week.data?.upcomingDeadlines?.length ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No upcoming deadlines on the calendar.</p>
           ) : (
-            <div className="grid gap-1.5 sm:grid-cols-2">
+            <div className="grid gap-1.5 sm:grid-cols-2 [&>*]:min-w-0">
               {week.data.upcomingDeadlines.slice(0, 6).map((d) => {
                 const meta = calendarTypeMeta(d.type);
                 return (
@@ -100,7 +100,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">

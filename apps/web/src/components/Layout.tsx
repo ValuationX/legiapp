@@ -9,8 +9,10 @@ import {
   Map,
   MapPin,
   Menu,
+  Moon,
   Search,
   Settings as SettingsIcon,
+  Sun,
   Users,
   X,
 } from 'lucide-react';
@@ -113,7 +115,7 @@ function StateSwitcher() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="ml-auto flex h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent/40"
+        className="flex h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent/40"
         aria-label="Change state"
       >
         <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -153,6 +155,24 @@ function StateSwitcher() {
   );
 }
 
+function ThemeToggle() {
+  const { theme, set } = useSettings();
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches);
+  return (
+    <button
+      onClick={() => set('theme', isDark ? 'light' : 'dark')}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent/40 hover:text-foreground"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
+
 function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur md:px-6">
@@ -165,13 +185,16 @@ function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: 
       </button>
       <button
         onClick={onSearch}
-        className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/40"
+        className="flex h-9 w-full min-w-0 max-w-sm items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/40"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="truncate">Search members, bills, committees…</span>
         <kbd className="ml-auto hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
-      <StateSwitcher />
+      <div className="ml-auto flex items-center gap-2">
+        <ThemeToggle />
+        <StateSwitcher />
+      </div>
     </header>
   );
 }

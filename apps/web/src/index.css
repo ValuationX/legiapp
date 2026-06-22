@@ -10,19 +10,19 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 222 47% 16%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 210 74% 37%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 18%;
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 42%;
-    --accent: 214 95% 95%;
-    --accent-foreground: 222 47% 18%;
+    --accent: 209 85% 94%;
+    --accent-foreground: 210 74% 32%;
     --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 98%;
     --border: 214 32% 90%;
     --input: 214 32% 88%;
-    --ring: 217 91% 45%;
+    --ring: 210 74% 45%;
     --radius: 0.5rem;
 
     /* Party palette — blue (D) / red (R); always paired with a D/R label so color
@@ -37,6 +37,40 @@
     /* Vote outcomes — teal (yea) / amber (nay): distinguishable for all CVD types. */
     --yea: 173 80% 30%;
     --nay: 28 90% 45%;
+  }
+
+  /* Dark theme — applied by toggling `.dark` on <html> (see lib/settings.tsx).
+     Keeps the brand blue as the accent; party/vote hues lightened for dark surfaces. */
+  .dark {
+    --background: 222 38% 9%;
+    --foreground: 210 40% 96%;
+    --card: 222 33% 12%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 33% 12%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 209 80% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 25% 18%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 24% 17%;
+    --muted-foreground: 215 18% 66%;
+    --accent: 213 46% 22%;
+    --accent-foreground: 210 60% 92%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 222 22% 22%;
+    --input: 222 22% 24%;
+    --ring: 209 80% 56%;
+
+    --dem: 213 90% 64%;
+    --dem-soft: 215 45% 22%;
+    --dem-fg: 213 90% 80%;
+    --rep: 0 78% 64%;
+    --rep-soft: 0 38% 24%;
+    --rep-fg: 0 85% 80%;
+
+    --yea: 173 55% 46%;
+    --nay: 30 85% 56%;
   }
 
   * {

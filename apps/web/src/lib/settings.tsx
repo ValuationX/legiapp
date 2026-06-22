@@ -2,14 +2,18 @@ import * as React from 'react';
 
 const STORAGE_KEY = 'billaid.settings';
 
+export type ThemePref = 'light' | 'dark' | 'system';
+
 export interface Settings {
   /** Show the Ukraine / foreign-affairs layer (tracker nav, profile FA section,
    *  Ukraine filters, leadership Ukraine column). Default on — it's a Nova Ukraine
    *  tool — but can be turned off to use Bill Aid as a plain bill tracker. */
   showForeignAffairs: boolean;
+  /** Color theme: explicit light/dark, or follow the OS preference. */
+  theme: ThemePref;
 }
 
-const DEFAULTS: Settings = { showForeignAffairs: true };
+const DEFAULTS: Settings = { showForeignAffairs: true, theme: 'system' };
 
 function load(): Settings {
   try {
@@ -28,6 +32,24 @@ const Ctx = React.createContext<SettingsCtx | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = React.useState<Settings>(() => load());
+
+  // Apply the color theme to <html> — toggling `.dark` drives every CSS variable.
+  // When set to "system", follow the OS preference live.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const dark = settings.theme === 'dark' || (settings.theme === 'system' && mq.matches);
+      root.classList.toggle('dark', dark);
+    };
+    apply();
+    if (settings.theme === 'system') {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+  }, [settings.theme]);
+
   const set = React.useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => {
       const next = { ...prev, [key]: value };

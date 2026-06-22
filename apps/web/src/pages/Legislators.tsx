@@ -108,7 +108,7 @@ export default function Legislators() {
       {isError ? (
         <ErrorState error={error} />
       ) : view === 'gallery' ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [&>*]:min-w-0">
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
             : sorted.map((l) => <MemberGalleryCard key={l.id} l={l} />)}
@@ -224,7 +224,7 @@ function Composition({ items }: { items: LegislatorSummary[] }) {
         <div className="bg-rep" style={{ width: `${(r / total) * 100}%` }} />
         {o > 0 ? <div className="bg-muted-foreground/40" style={{ width: `${(o / total) * 100}%` }} /> : null}
       </div>
-      <div className="mt-2 flex items-center gap-4 text-xs">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-dem" /> <b className="tabular">{d}</b> Democratic
         </span>
