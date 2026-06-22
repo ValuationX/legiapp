@@ -5,7 +5,6 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { AccessProvider } from '@/lib/access';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -17,13 +16,11 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AccessProvider>
-        <BrowserRouter>
-          <App />
-          <Analytics />
-          <SpeedInsights />
-        </BrowserRouter>
-      </AccessProvider>
+      <BrowserRouter>
+        <App />
+        <Analytics />
+        <SpeedInsights />
+      </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,
 );

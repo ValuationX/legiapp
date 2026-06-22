@@ -4,7 +4,6 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyError } from 'fastify';
 import { ZodError } from 'zod';
-import { hasAccess } from './access.js';
 import { ping } from './db.js';
 import { accessRoutes } from './routes/access.js';
 import { billRoutes } from './routes/bills.js';
@@ -46,14 +45,7 @@ export function buildServer() {
     return reply.code(dbOk ? 200 : 503).send({ ok: dbOk, db: dbOk, ts: new Date().toISOString() });
   });
 
-  // Shared-access-code gate: everything except health + the access endpoints
-  // requires a valid access cookie.
-  app.addHook('onRequest', async (req, reply) => {
-    const path = req.url.split('?')[0];
-    if (path === '/api/health' || path === '/api/access' || path === '/api/access/status') return;
-    if (!hasAccess(req)) return reply.code(401).send({ error: 'access code required' });
-  });
-
+  // Public site (no access gate) — the data is public record and ads need open access.
   app.register(accessRoutes);
   app.register(legislatorRoutes);
   app.register(leadershipRoutes);

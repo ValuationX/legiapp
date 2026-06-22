@@ -4,7 +4,6 @@ import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
-import { Spinner } from '@/components/ui/primitives';
 import About from '@/pages/About';
 import BillDetail from '@/pages/BillDetail';
 import Bills from '@/pages/Bills';
@@ -22,7 +21,6 @@ import Privacy from '@/pages/Privacy';
 import Settings from '@/pages/Settings';
 import Terms from '@/pages/Terms';
 import VoteDetail from '@/pages/VoteDetail';
-import { AccessGate, useAccess } from '@/lib/access';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { StateProvider, useStateCtx } from '@/lib/state';
 
@@ -107,17 +105,7 @@ function Shell() {
 }
 
 export default function App() {
-  const { authorized, loading } = useAccess();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner className="h-6 w-6 text-muted-foreground" />
-      </div>
-    );
-  }
-  if (!authorized) return <AccessGate />;
-
+  // Public site — no access gate (the data is public record; ads require open access).
   return (
     <SettingsProvider>
       <StateProvider>
