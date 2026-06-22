@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Logo, LogoMark } from '@/components/Logo';
 import { SearchPalette } from '@/components/SearchPalette';
 import { StatePicker } from '@/components/StatePicker';
@@ -99,6 +99,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 function StateSwitcher() {
   const { state, current, states } = useStateCtx();
   const [open, setOpen] = React.useState(false);
+  const navigate = useNavigate();
   const label = current?.name ?? state;
   React.useEffect(() => {
     if (!open) return;
@@ -142,7 +143,12 @@ function StateSwitcher() {
             <p className="mb-4 text-xs text-muted-foreground">
               {states.length} state{states.length === 1 ? '' : 's'} available — more coming soon.
             </p>
-            <StatePicker onPick={() => setOpen(false)} />
+            <StatePicker
+              onPick={() => {
+                setOpen(false);
+                navigate('/'); // switching states drops you on the new state's This Week (not a stale cross-state detail page)
+              }}
+            />
           </div>
         </div>,
             document.body,
