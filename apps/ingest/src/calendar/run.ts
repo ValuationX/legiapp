@@ -1,15 +1,13 @@
+import { getState, type StateCode } from '@legiapp/shared';
 import { connectClient } from '../db.js';
 import {
+  CALENDAR,
   ELECTION_EVENTS,
   FALLBACK_DEADLINES,
   SENATE_DEADLINES_URL,
   SENATE_ICS_URL,
 } from './data.js';
 import { categorizeEvent, parseIcs } from './ics.js';
-
-// Sources this adapter fully owns — cleared at the start of each run so a refresh
-// is authoritative and idempotent (mirrors the district adapter's replace model).
-const MANAGED_SOURCES = ['senate-ics', 'senate-2026-calendar', 'ca-sos'];
 
 interface Row {
   externalId: string;
@@ -27,12 +25,12 @@ interface Row {
 function allDay(dateOnly: string): Date {
   return new Date(`${dateOnly}T12:00:00Z`);
 }
-
 function noonUtc(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12));
 }
 
-/** Fetch + parse the official Senate deadlines ICS. Returns [] if unreachable. */
+// ── California builders (live Senate ICS + curated SoS) — kept on their original
+//    source/external-id scheme so re-running CA refreshes its existing rows in place.
 async function fetchLegislativeDeadlines(): Promise<Row[]> {
   let raw: string;
   try {
@@ -46,10 +44,7 @@ async function fetchLegislativeDeadlines(): Promise<Row[]> {
     console.warn(`  • Senate ICS unreachable (${(err as Error).message}); using curated fallback`);
     return [];
   }
-
   return parseIcs(raw)
-    // The lone election event ("General Election.") is owned by the richer SoS
-    // set below — drop it here (tolerate trailing punctuation) to avoid a Nov 3 dupe.
     .filter((e) => !/^general election\.?$/i.test(e.summary.trim()))
     .map((e) => {
       const { type, deadlineFlag } = categorizeEvent(e.summary);
@@ -65,7 +60,6 @@ async function fetchLegislativeDeadlines(): Promise<Row[]> {
       };
     });
 }
-
 function fallbackDeadlines(): Row[] {
   return FALLBACK_DEADLINES.map((d) => {
     const { type, deadlineFlag } = categorizeEvent(d.title);
@@ -81,8 +75,7 @@ function fallbackDeadlines(): Row[] {
     };
   });
 }
-
-function electionEvents(): Row[] {
+function californiaElections(): Row[] {
   return ELECTION_EVENTS.map((ev) => ({
     externalId: `ca-sos:${ev.slug}`,
     date: allDay(ev.date),
@@ -95,44 +88,65 @@ function electionEvents(): Row[] {
   }));
 }
 
-export async function runCalendar(): Promise<{ legislative: number; elections: number; liveIcs: boolean }> {
+// ── Generic builder for source-fed states: curated election + session/deadline
+//    events transcribed from official SoS + legislature sources (see data.ts).
+function curatedRows(st: StateCode): Row[] {
+  return (CALENDAR[st] ?? []).map((e) => ({
+    externalId: `${st}:${e.slug}`,
+    date: allDay(e.date),
+    type: e.type,
+    title: e.title,
+    detail: e.detail || null,
+    deadlineFlag: e.deadline,
+    sourceUrl: e.sourceUrl,
+    source: `${st.toLowerCase()}-calendar`,
+  }));
+}
+
+export async function runCalendar(stateRaw = 'CA'): Promise<{ events: number; liveIcs: boolean }> {
+  const cfg = getState(stateRaw);
+  if (!cfg) throw new Error(`unknown state: ${stateRaw}`);
+  const st = cfg.code;
   const client = await connectClient();
   const { rows: runRows } = await client.query<{ id: number }>(
-    `INSERT INTO ingest_run (source, kind, status) VALUES ('ca_calendar', 'enrich', 'running') RETURNING id`,
+    `INSERT INTO ingest_run (source, kind, status) VALUES ($1, 'enrich', 'running') RETURNING id`,
+    [`${st.toLowerCase()}_calendar`],
   );
   const runId = runRows[0]!.id;
   try {
-    let legislative = await fetchLegislativeDeadlines();
-    const liveIcs = legislative.length > 0;
-    if (!liveIcs) legislative = fallbackDeadlines();
-    const elections = electionEvents();
-    const rows = [...legislative, ...elections];
-
-    await client.query('BEGIN');
-    await client.query(`DELETE FROM calendar_event WHERE source = ANY($1)`, [MANAGED_SOURCES]);
-    for (const r of rows) {
-      await client.query(
-        `INSERT INTO calendar_event (external_id, date, type, title, detail, deadline_flag, source_url, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (external_id) DO UPDATE
-           SET date = EXCLUDED.date, type = EXCLUDED.type, title = EXCLUDED.title,
-               detail = EXCLUDED.detail, deadline_flag = EXCLUDED.deadline_flag,
-               source_url = EXCLUDED.source_url, last_verified = now()`,
-        [r.externalId, r.date, r.type, r.title, r.detail, r.deadlineFlag, r.sourceUrl, r.source],
-      );
+    let rows: Row[];
+    let liveIcs = false;
+    if (st === 'CA') {
+      let legislative = await fetchLegislativeDeadlines();
+      liveIcs = legislative.length > 0;
+      if (!liveIcs) legislative = fallbackDeadlines();
+      rows = [...legislative, ...californiaElections()];
+    } else {
+      rows = curatedRows(st);
     }
-    await client.query('COMMIT');
 
-    // liveIcs=false means the curated fallback is in use — surfaced in stats so
-    // /api/meta/sources can flag that the live feed wasn't reached.
-    const stats = { legislative: legislative.length, elections: elections.length, liveIcs };
-    await client.query(`UPDATE ingest_run SET status='success', finished_at=now(), stats=$2 WHERE id=$1`, [
-      runId,
-      stats,
-    ]);
-    console.log(
-      `  ↳ calendar: ${legislative.length} legislative (${liveIcs ? 'live ICS' : 'curated fallback'}) + ${elections.length} election events`,
-    );
+    if (rows.length) {
+      const sources = [...new Set(rows.map((r) => r.source))];
+      await client.query('BEGIN');
+      // Replace this state's managed calendar rows (state-scoped — never touches another state).
+      await client.query(`DELETE FROM calendar_event WHERE state = $1 AND source = ANY($2)`, [st, sources]);
+      for (const r of rows) {
+        await client.query(
+          `INSERT INTO calendar_event (state, external_id, date, type, title, detail, deadline_flag, source_url, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (state, external_id) DO UPDATE
+             SET date = EXCLUDED.date, type = EXCLUDED.type, title = EXCLUDED.title,
+                 detail = EXCLUDED.detail, deadline_flag = EXCLUDED.deadline_flag,
+                 source_url = EXCLUDED.source_url, last_verified = now()`,
+          [st, r.externalId, r.date, r.type, r.title, r.detail, r.deadlineFlag, r.sourceUrl, r.source],
+        );
+      }
+      await client.query('COMMIT');
+    }
+
+    const stats = { events: rows.length, liveIcs };
+    await client.query(`UPDATE ingest_run SET status='success', finished_at=now(), stats=$2 WHERE id=$1`, [runId, stats]);
+    console.log(`  ↳ ${st} calendar: ${rows.length} events${st === 'CA' ? ` (${liveIcs ? 'live ICS' : 'curated fallback'})` : ''}`);
     return stats;
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
