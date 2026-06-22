@@ -7,6 +7,7 @@ import { ErrorState, MemberAvatar, PartyBadge, SourceBadge, StatusBadge } from '
 import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api } from '@/lib/api';
+import { useSettings } from '@/lib/settings';
 import { chamberLabel, formatDate, partyColor, stanceMeta, voteOptionMeta } from '@/lib/format';
 
 export default function LegislatorDetail() {
@@ -17,9 +18,10 @@ export default function LegislatorDetail() {
   const bills = useQuery({ queryKey: ['legislator-bills', id], queryFn: () => api.legislatorBills(id) });
   const votes = useQuery({ queryKey: ['legislator-votes', id], queryFn: () => api.legislatorVotes(id) });
 
+  const { showForeignAffairs } = useSettings();
   if (leg.isError) return <ErrorState error={leg.error} />;
   const l = leg.data;
-  const faBills = (bills.data ?? []).filter((b) => (b.faRegions?.length ?? 0) > 0);
+  const faBills = showForeignAffairs ? (bills.data ?? []).filter((b) => (b.faRegions?.length ?? 0) > 0) : [];
 
   return (
     <div>

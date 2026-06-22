@@ -13,6 +13,8 @@ interface StateCtx {
   states: StateMeta[];
   /** Display config for the active state, once the registry has loaded. */
   current: StateMeta | undefined;
+  /** Whether the user has explicitly chosen a state (vs. first visit → show picker). */
+  chosen: boolean;
 }
 
 const Ctx = React.createContext<StateCtx | null>(null);
@@ -21,6 +23,13 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const [state, setStateRaw] = React.useState<string>(() => getStateCode());
   const [states, setStates] = React.useState<StateMeta[]>([]);
+  const [chosen, setChosen] = React.useState<boolean>(() => {
+    try {
+      return !!localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return false;
+    }
+  });
 
   // Load the registry once (the access cookie is already set by the time this
   // provider mounts, since it lives inside the authorized branch).
@@ -49,6 +58,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
       if (code === getStateCode()) return;
       setActiveState(code);
       setStateRaw(code);
+      setChosen(true);
       try {
         localStorage.setItem(STORAGE_KEY, code);
       } catch {
@@ -62,7 +72,10 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
   );
 
   const current = states.find((s) => s.code === state);
-  const value = React.useMemo(() => ({ state, setState, states, current }), [state, setState, states, current]);
+  const value = React.useMemo(
+    () => ({ state, setState, states, current, chosen }),
+    [state, setState, states, current, chosen],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

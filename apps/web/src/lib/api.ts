@@ -58,6 +58,20 @@ async function errorMessage(res: Response): Promise<string> {
 }
 
 export type SponsoredBill = BillSummary & { sponsorType: 'primary' | 'co'; faRegions?: string[] };
+
+export interface LeadershipRow {
+  role: string;
+  chamber: 'assembly' | 'senate' | null;
+  legislatorId: string | null;
+  fullName: string;
+  party: string | null;
+  district: number | null;
+  photoUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  faBills: { id: string; identifier: string; type: 'primary' | 'co'; regions: string[] | null }[];
+}
 export interface BillFacets {
   statuses: string[];
   measureTypes: string[];
@@ -130,6 +144,7 @@ export const api = {
   foreignAffairs: (qs: string) => get<ForeignAffairsResponse>(`/foreign-affairs?${ws(qs)}`),
   search: (q: string) => get<SearchResults>(`/search?${ws(`q=${encodeURIComponent(q)}`)}`),
   thisWeek: () => get<DashboardThisWeek>(`/dashboard/this-week?${ws()}`),
+  leadership: () => get<LeadershipRow[]>(`/leadership?${ws()}`),
   sources: () => get<SourceStatus[]>(`/meta/sources`),
   meta: {
     states: () => get<StateMeta[]>(`/meta/states`),

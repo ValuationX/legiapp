@@ -1,0 +1,50 @@
+import * as React from 'react';
+
+const STORAGE_KEY = 'billaid.settings';
+
+export interface Settings {
+  /** Show the Ukraine / foreign-affairs layer (tracker nav, profile FA section,
+   *  Ukraine filters, leadership Ukraine column). Default on — it's a Nova Ukraine
+   *  tool — but can be turned off to use Bill Aid as a plain bill tracker. */
+  showForeignAffairs: boolean;
+}
+
+const DEFAULTS: Settings = { showForeignAffairs: true };
+
+function load(): Settings {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (raw) return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+  } catch {
+    /* ignore */
+  }
+  return DEFAULTS;
+}
+
+interface SettingsCtx extends Settings {
+  set: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+}
+const Ctx = React.createContext<SettingsCtx | null>(null);
+
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const [settings, setSettings] = React.useState<Settings>(() => load());
+  const set = React.useCallback(<K extends keyof Settings>(key: K, value: Settings[K]) => {
+    setSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  const value = React.useMemo(() => ({ ...settings, set }), [settings, set]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useSettings(): SettingsCtx {
+  const ctx = React.useContext(Ctx);
+  if (!ctx) throw new Error('useSettings must be used within SettingsProvider');
+  return ctx;
+}

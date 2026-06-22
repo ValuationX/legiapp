@@ -8,6 +8,7 @@ import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { chamberLabel, partyMeta } from '@/lib/format';
+import { useSettings } from '@/lib/settings';
 import { useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ export default function Legislators() {
   const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
   const [sort, setSort] = React.useState<'district' | 'party' | 'name'>('district');
   const sl = useStateLabels();
+  const { showForeignAffairs } = useSettings();
 
   // Roster fits one page (largest state is PA at 253) — fetch all, render without pagination.
   const qs = new URLSearchParams({ pageSize: '300' });
@@ -80,13 +82,15 @@ export default function Legislators() {
           <option value="2026">Up for reelection 2026</option>
           <option value="2028">Up for reelection 2028</option>
         </Select>
-        <Select value={ukraine} onChange={(e) => setUkraine(e.target.value)} title="Position on Ukraine">
-          <option value="">Ukraine: any position</option>
-          <option value="support">Ukraine: Support</option>
-          <option value="oppose">Ukraine: Oppose</option>
-          <option value="mixed">Ukraine: Mixed</option>
-          <option value="unknown">Ukraine: Unknown</option>
-        </Select>
+        {showForeignAffairs ? (
+          <Select value={ukraine} onChange={(e) => setUkraine(e.target.value)} title="Position on Ukraine">
+            <option value="">Ukraine: any position</option>
+            <option value="support">Ukraine: Support</option>
+            <option value="oppose">Ukraine: Oppose</option>
+            <option value="mixed">Ukraine: Mixed</option>
+            <option value="unknown">Ukraine: Unknown</option>
+          </Select>
+        ) : null}
         <Select
           value={sort}
           onChange={(e) => setSort(e.target.value as 'district' | 'party' | 'name')}

@@ -1,5 +1,5 @@
-import { Landmark } from 'lucide-react';
 import * as React from 'react';
+import { LogoMark } from '@/components/Logo';
 import { Button, Card, CardContent, Input } from '@/components/ui/primitives';
 import { api } from './api';
 
@@ -63,10 +63,8 @@ export function AccessGate() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Landmark className="h-6 w-6" />
-          </div>
-          <h1 className="mt-3 text-xl font-semibold tracking-tight">LegiApp for Nova Ukraine</h1>
+          <LogoMark size={48} />
+          <h1 className="mt-3 text-xl font-semibold tracking-tight">Bill Aid</h1>
           <p className="mt-1 text-sm text-muted-foreground">Enter the access code shared by your organization.</p>
         </div>
         <Card>

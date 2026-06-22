@@ -1,36 +1,50 @@
 import {
   Building2,
   CalendarDays,
+  ChevronDown,
+  Crown,
   FileText,
   Globe,
   LayoutDashboard,
-  Landmark,
   Map,
+  MapPin,
   Menu,
   Search,
+  Settings as SettingsIcon,
   Users,
   X,
 } from 'lucide-react';
 import * as React from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Logo } from '@/components/Logo';
 import { SearchPalette } from '@/components/SearchPalette';
+import { StatePicker } from '@/components/StatePicker';
+import { useSettings } from '@/lib/settings';
 import { useStateCtx } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 const NAV = [
   { to: '/', label: 'This Week', icon: LayoutDashboard, end: true },
-  { to: '/foreign-affairs', label: 'Ukraine & Foreign Affairs', icon: Globe },
+  { to: '/foreign-affairs', label: 'Foreign Affairs', icon: Globe, fa: true },
   { to: '/bills', label: 'Bills', icon: FileText },
   { to: '/legislators', label: 'Legislators', icon: Users },
+  { to: '/leadership', label: 'Leadership', icon: Crown },
   { to: '/committees', label: 'Committees', icon: Building2 },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/map', label: 'District Map', icon: Map },
 ];
 
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+    isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+  );
+
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { showForeignAffairs } = useSettings();
+  const items = NAV.filter((n) => !n.fa || showForeignAffairs);
   return (
     <>
-      {/* Mobile backdrop — tap to close */}
       <div
         className={cn(
           'fixed inset-0 z-30 bg-black/50 transition-opacity duration-200 md:hidden',
@@ -47,14 +61,8 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         )}
       >
         <div className="flex items-center justify-between gap-2 border-b px-4 py-4">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Landmark className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold leading-none">LegiApp for Nova Ukraine</div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">Ukraine legislative tracker</div>
-            </div>
+          <Link to="/" className="hover:opacity-80">
+            <Logo size={30} />
           </Link>
           <button
             onClick={onClose}
@@ -64,55 +72,72 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             <X className="h-5 w-5" />
           </button>
         </div>
+
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-                )
-              }
-            >
+          {items.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} className={navLinkClass}>
               <Icon className="h-4 w-4 shrink-0" />
               {label}
             </NavLink>
           ))}
         </nav>
-        <div className="border-t px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-          Created by <span className="font-medium text-foreground">Arseniy Shafran</span> as an informational tool to aid
-          research. This site aggregates public data and by no means should replace human input.
+
+        <div className="border-t p-3">
+          <NavLink to="/settings" className={navLinkClass}>
+            <SettingsIcon className="h-4 w-4 shrink-0" />
+            Settings
+          </NavLink>
+          <p className="px-3 pt-3 text-[11px] leading-relaxed text-muted-foreground">
+            Aggregates public legislative data — verify anything important against the official record.
+          </p>
         </div>
       </aside>
     </>
   );
 }
 
-function StateSelect() {
-  const { state, setState, states } = useStateCtx();
-  // Hidden until more than one state has data, so the CA-only UI is unchanged.
-  if (states.length < 2) return null;
+function StateSwitcher() {
+  const { state, current, states } = useStateCtx();
+  const [open, setOpen] = React.useState(false);
+  const label = current?.name ?? state;
   return (
-    <label className="ml-auto flex items-center gap-1.5 text-sm">
-      <span className="hidden text-muted-foreground sm:inline">State</span>
-      <select
-        value={state}
-        onChange={(e) => setState(e.target.value)}
-        aria-label="State"
-        className="h-9 rounded-md border border-input bg-card px-2 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="ml-auto flex h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent/40"
+        aria-label="Change state"
       >
-        {states.map((s) => (
-          <option key={s.code} value={s.code}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-    </label>
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <span className="hidden sm:inline">{label}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </button>
+      {open ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-lg border bg-card p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold">Choose a state</h2>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-4 text-xs text-muted-foreground">
+              {states.length} state{states.length === 1 ? '' : 's'} available — more coming soon.
+            </p>
+            <StatePicker onPick={() => setOpen(false)} />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -128,26 +153,24 @@ function Topbar({ onSearch, onToggleNav }: { onSearch: () => void; onToggleNav: 
       </button>
       <button
         onClick={onSearch}
-        className="flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/40"
+        className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/40"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="truncate">Search members, bills, committees…</span>
         <kbd className="ml-auto hidden rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
-      <StateSelect />
+      <StateSwitcher />
     </header>
   );
 }
 
 export function Layout() {
   const [searchOpen, setSearchOpen] = React.useState(false);
-  // Open by default on desktop, closed on phones.
   const [navOpen, setNavOpen] = React.useState(
     () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
   );
   const location = useLocation();
 
-  // Close the drawer after navigating on mobile so it doesn't cover the content.
   React.useEffect(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
       setNavOpen(false);
