@@ -2,13 +2,14 @@ import { timingSafeEqual } from 'node:crypto';
 import { SearchQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 export async function miscRoutes(app: FastifyInstance) {
   // Global search across members, bills, committees.
   app.get('/api/search', async (req) => {
-    const { q, limit, state: stateRaw } = SearchQuery.parse(req.query);
+    const { q, limit } = SearchQuery.parse(req.query);
     const like = `%${q}%`;
-    const state = (stateRaw ?? 'CA').toUpperCase();
+    const state = stateOf(req);
     const [legislators, bills, committees] = await Promise.all([
       query(
         `SELECT l.id, l.full_name AS "fullName", l.first_name AS "firstName", l.last_name AS "lastName",
@@ -45,7 +46,7 @@ export async function miscRoutes(app: FastifyInstance) {
 
   // "This week" dashboard: recently moved bills + upcoming hearings + freshness.
   app.get('/api/dashboard/this-week', async (req) => {
-    const stateLit = (req.query as { state?: string }).state?.toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
+    const stateLit = stateOf(req);
     const recentlyMovedBills = await query(
       `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
               b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",

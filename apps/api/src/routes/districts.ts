@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 interface Row {
   number: number;
@@ -21,7 +22,7 @@ export async function districtRoutes(app: FastifyInstance) {
     // boundary set is "current" today; "proposed" is ready for when CA publishes
     // redistricting maps (same district-ingest pipeline loads them).
     const boundarySet = (req.query as { boundarySet?: string }).boundarySet === 'proposed' ? 'proposed' : 'current';
-    const state = (req.query as { state?: string }).state?.toUpperCase() ?? 'CA';
+    const state = stateOf(req);
     const rows = await query<Row>(
       `SELECT d.number, d.geojson,
               l.id AS leg_id, l.full_name, l.party, l.photo_url

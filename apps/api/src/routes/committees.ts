@@ -1,6 +1,7 @@
 import { CommitteeQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 export async function committeeRoutes(app: FastifyInstance) {
   app.get('/api/committees', async (req) => {
@@ -11,7 +12,7 @@ export async function committeeRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
-    add('c.state = ?', (q.state ?? 'CA').toUpperCase());
+    add('c.state = ?', stateOf(req));
     if (q.chamber) add('c.chamber = ?', q.chamber);
     if (q.q) add('c.name ILIKE ?', `%${q.q}%`);
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

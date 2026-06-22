@@ -1,6 +1,7 @@
 import { BillQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 const SUMMARY_COLS = `
   b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
@@ -17,8 +18,8 @@ export async function billRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
-    // State scope (default CA). Sanitized to a 2-letter code so it's safe to inline in subqueries.
-    const stateLit = (q.state ?? 'CA').toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
+    // State scope (default CA). A validated registry code — safe to inline in subqueries.
+    const stateLit = stateOf(req);
     add('b.state = ?', stateLit);
     // Default to the current session; "all" spans every session, or pin one session_year.
     if (q.session === 'all') {
@@ -106,7 +107,7 @@ export async function billRoutes(app: FastifyInstance) {
 
   // Filter facets (distinct statuses / measure types / subjects) for the bills list UI.
   app.get('/api/bills-facets', async (req) => {
-    const stateLit = (req.query as { state?: string }).state?.toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
+    const stateLit = stateOf(req);
     const statuses = await query<{ value: string }>(
       `SELECT DISTINCT status AS value FROM bill WHERE status IS NOT NULL AND state = '${stateLit}' ORDER BY 1`,
     );

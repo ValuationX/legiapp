@@ -1,6 +1,7 @@
 import { LegislatorQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 const SUMMARY_COLS = `
   l.id, l.full_name AS "fullName", l.first_name AS "firstName", l.last_name AS "lastName",
@@ -18,7 +19,7 @@ export async function legislatorRoutes(app: FastifyInstance) {
       params.push(val);
       where.push(clause.replace('?', `$${params.length}`));
     };
-    add('l.state = ?', (q.state ?? 'CA').toUpperCase());
+    add('l.state = ?', stateOf(req));
     // Default to the current roster; "all" shows every session, or pin one session_year.
     if (q.session === 'all') {
       /* no session filter */

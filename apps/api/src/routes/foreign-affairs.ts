@@ -8,6 +8,7 @@ import {
 } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 interface BillRow {
   id: string;
@@ -31,8 +32,8 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
   // Ukraine / foreign-affairs bills across ALL sessions, with authors, coauthors
   // (each flagged in-office vs left), signed/chaptered status, and a leaderboard.
   app.get('/api/foreign-affairs', async (req) => {
-    const { region, state } = ForeignAffairsQuery.parse(req.query);
-    const stateLit = (state ?? 'CA').toUpperCase().match(/^[A-Z]{2}$/)?.[0] ?? 'CA';
+    const { region } = ForeignAffairsQuery.parse(req.query);
+    const stateLit = stateOf(req);
     const regionKey = region && FA_REGION_BY_KEY.has(region) ? region : undefined;
 
     // Region chips — always the full set (with counts), ordered Ukraine-first.

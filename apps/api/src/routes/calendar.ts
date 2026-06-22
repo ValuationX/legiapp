@@ -1,6 +1,7 @@
 import { CalendarQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
+import { stateOf } from '../state.js';
 
 const SELECT = `SELECT id, date, type, title, detail,
         deadline_flag AS "deadlineFlag", source_url AS "sourceUrl",
@@ -11,10 +12,10 @@ export async function calendarRoutes(app: FastifyInstance) {
   // Legislative deadlines + statewide election milestones, with filters by type,
   // deadline-only, upcoming-only, and an explicit date range.
   app.get('/api/calendar', async (req) => {
-    const { state, type, deadline, upcoming, from, to, limit } = CalendarQuery.parse(req.query);
+    const { type, deadline, upcoming, from, to, limit } = CalendarQuery.parse(req.query);
     const where: string[] = [];
     const params: unknown[] = [];
-    params.push((state ?? 'CA').toUpperCase());
+    params.push(stateOf(req));
     where.push(`state = $${params.length}`);
     if (type) {
       params.push(type);
