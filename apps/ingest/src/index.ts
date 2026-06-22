@@ -3,6 +3,7 @@ import { runCommittees } from './committees/run.js';
 import { runContacts } from './contacts/run.js';
 import { runForeignAffairs } from './foreign-affairs/run.js';
 import { runDistricts } from './districts/run.js';
+import { runAugmentCa } from './openstates/augment-ca.js';
 import { runOpenStates } from './openstates/run.js';
 import { runStateImport } from './openstates/import-state.js';
 import { runAll } from './pipeline.js';
@@ -25,6 +26,7 @@ try {
   else if (cmd === 'districts') await runDistricts();
   else if (cmd === 'calendar') await runCalendar();
   else if (cmd === 'state') await runStateImport(process.argv[3] ?? ''); // e.g. `state NY` — Open States primary import
+  else if (cmd === 'augment-ca') await runAugmentCa(); // add missing CA foreign-affairs bills from Open States CSVs
   else if (cmd === 'schedule') startScheduler(); // long-running; never exits
   else await runAll();
 
