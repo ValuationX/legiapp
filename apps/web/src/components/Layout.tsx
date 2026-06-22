@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { SearchPalette } from '@/components/SearchPalette';
@@ -100,6 +101,14 @@ function StateSwitcher() {
   const { state, current, states } = useStateCtx();
   const [open, setOpen] = React.useState(false);
   const label = current?.name ?? state;
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
   return (
     <>
       <button
@@ -111,7 +120,8 @@ function StateSwitcher() {
         <span className="hidden sm:inline">{label}</span>
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </button>
-      {open ? (
+      {open
+        ? createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => setOpen(false)}
@@ -135,8 +145,10 @@ function StateSwitcher() {
             </p>
             <StatePicker onPick={() => setOpen(false)} />
           </div>
-        </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
