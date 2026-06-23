@@ -25,7 +25,7 @@ function readCsv(path: string): any[] {
 const tail = (s?: string) => (s ?? '').split('/').pop() ?? ''; // "ocd-vote/<uuid>" -> "<uuid>"
 const chamberOf = (c?: string) => (c === 'lower' ? 'assembly' : c === 'upper' ? 'senate' : null);
 
-function mapOption(o?: string): 'yea' | 'nay' | 'abstain' | 'absent' | 'other' {
+export function mapOption(o?: string): 'yea' | 'nay' | 'abstain' | 'absent' | 'other' {
   switch ((o ?? '').toLowerCase()) {
     case 'yes':
       return 'yea';
@@ -64,7 +64,7 @@ interface VRecord {
 
 /** Chunked multi-row INSERT (one round-trip per `chunk` rows). `rowSql(offset)`
  *  returns the `($1,$2,…)` group for one row; `rows` are arrays of param values. */
-async function batchInsert(
+export async function batchInsert(
   client: any,
   prefix: string,
   suffix: string,

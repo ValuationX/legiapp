@@ -2,7 +2,14 @@ import { DATABASE_URL, pgSsl, withDbRetry } from '@legiapp/db';
 import pg from 'pg';
 
 export function createClient(): pg.Client {
-  return new pg.Client({ connectionString: DATABASE_URL, ssl: pgSsl(DATABASE_URL) });
+  // keepAlive sends TCP probes so Neon doesn't drop the connection during long imports
+  // that idle the socket between slow, rate-limited API fetches (the Open States v3 path).
+  return new pg.Client({
+    connectionString: DATABASE_URL,
+    ssl: pgSsl(DATABASE_URL),
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+  });
 }
 
 export function createPool(): pg.Pool {
