@@ -5,7 +5,7 @@
 // While it's empty, everything degrades gracefully to a "coming soon" / goal-only
 // state (no broken links or empty iframes). Ko-fi has no public API, so the live
 // progress bar is Ko-fi's own embedded widget.
-export const KOFI_USERNAME: string = '';
+export const KOFI_USERNAME: string = 'arseniyshafran';
 
 /** Monthly funding goal in USD — the threshold that funds the free Advocacy API. */
 export const FUNDING_GOAL = 200;

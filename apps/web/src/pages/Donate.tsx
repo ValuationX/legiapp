@@ -140,6 +140,16 @@ export default function Donate() {
               the flagship goal on the roadmap below. Every dollar beyond the goal goes straight into
               development: the more support, the faster we ship it.
             </p>
+            {href ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                See live progress toward the goal on Ko-fi <ExternalLink className="h-3 w-3" aria-hidden />
+              </a>
+            ) : null}
             {embed ? (
               <div className="mt-4 overflow-hidden rounded-lg border bg-background">
                 <iframe
