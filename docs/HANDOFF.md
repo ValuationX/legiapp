@@ -31,9 +31,12 @@ foreign-affairs tags, committees (rosters + chairs), district maps, chamber lead
 - **CA** is the deepest (official PUBINFO source incl. its own votes); NY/OH/MI/HI/IA/PA/MA
   come from Open States bulk CSVs + Census TIGER + curated leadership/calendar.
 - **IL + AZ** were loaded via the Open States **v3 API** (no bulk CSV exists for their recent
-  sessions). Caveats: **no roll-call votes** (votes come from the bulk CSVs they lack); **AZ
-  bills are FA-complete but recent non-FA is slightly truncated** (a late connection drop);
-  **AZ map is multi-member** (one rep linked per district).
+  sessions). The API path now **collects all bills before opening the DB connection**, so Neon
+  no longer drops it mid-import (letting AZ's FA sweep finish doubled its FA coverage to 153).
+  **AZ has roll-call votes** (931 events / ~21k records, 84% linked) pulled from the API's
+  inline `include=votes` — no LegiScan needed. **IL's votes run hit the OS free-tier daily cap
+  (250/day)** — re-run `state IL` after it resets to load IL votes. **AZ map is multi-member**
+  (one rep linked per district).
 - **MA** map is partial (named districts, e.g. "3rd Middlesex"); all other MA data is complete.
 
 ## Architecture (TypeScript monorepo, npm workspaces)
@@ -97,13 +100,12 @@ the exact per-state commands. All sources are free; no paid APIs.
 
 ## Pending / next steps
 
-1. **IL + AZ polish (loaded, not fully clean).** Both are live via the Open States v3 API.
-   Remaining: AZ's recent non-FA bills are slightly truncated (a late Neon connection drop mid-
-   import), and IL/AZ have no roll-call votes (their source lacks them via this path). The robust
-   fix: refactor the API path in `runStateImport` to **collect all bills via the API first, then
-   open the DB connection and write** — so Neon never drops an idle connection; re-running
-   `state IL`/`state AZ` then gives a fully clean load. (keepAlive + a pg `error` handler were
-   added as stopgaps and got both states in.)
+1. **IL roll-call votes (quota-blocked, one re-run away).** The API path was refactored to
+   collect-then-write (Neon no longer drops it) and now imports votes inline via the OS v3
+   `include=votes` — **AZ is done** (931 events / ~21k records, 84% linked). IL's votes run hit
+   the Open States free-tier **250/day** cap; re-run
+   `IMPORT_APPLY=1 OPENSTATES_API_KEY=… DATABASE_URL=<neon> npm run ingest -- state IL` once the
+   quota resets (daily). The run is idempotent — it refreshes IL's bills and writes its votes.
 2. **Rotate secrets** — the Neon password and Open States key were pasted in chat; rotate both
    and update Vercel env.
 3. **MA district map** — named districts; revisit if a full MA map is wanted.
@@ -126,7 +128,10 @@ the exact per-state commands. All sources are free; no paid APIs.
 
 ## Gotchas
 
-- **Neon drops long single-connection imports** (the OS v3 API path) — see Pending #1.
+- **Open States v3 free key is capped at ~250 requests/day** — a full IL+AZ votes load can
+  exhaust it; the importer fails cleanly (before any DB write) and can be retried after reset.
+- **(Fixed) Neon dropped long single-connection imports** — the OS v3 API path now collects all
+  bills before opening the DB connection, so it's never held idle during slow fetches.
 - **OS v3 `/bills` caps `per_page` at 20**; ordinal session names ("104th") don't start with a
   year, so the FA "2022+" filter also reads the bill's action-date year.
 - **`bill_subject` has no unique constraint** — importers clear a state's FA tags before re-tagging.
