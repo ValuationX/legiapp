@@ -279,6 +279,11 @@ export async function runStateImport(code: string): Promise<void> {
 
   console.log(`${DRY ? '[DRY RUN] ' : ''}Importing ${st.name} (${st.code})…`);
   const client = DRY ? null : await connectClient();
+  // The slow, rate-limited API path can leave the connection idle long enough that Neon
+  // drops it (esp. states with sparse FA results, where few writes happen between fetches).
+  // Ping every 20s to keep it warm, and handle 'error' so a transient drop doesn't crash.
+  client?.on('error', (e) => console.warn(`  pg client error: ${(e as Error).message}`));
+  const keepalive = client ? setInterval(() => void client.query('SELECT 1').catch(() => {}), 20_000) : null;
   try {
     let rosterPids = new Set<string>();
     if (process.env.SKIP_LEGS !== '1') {
@@ -312,6 +317,7 @@ export async function runStateImport(code: string): Promise<void> {
 
     console.log(DRY ? '[DRY RUN] no writes — set IMPORT_APPLY=1 to load.' : `✓ ${st.code} imported.`);
   } finally {
+    if (keepalive) clearInterval(keepalive);
     if (client) await client.end();
   }
 }

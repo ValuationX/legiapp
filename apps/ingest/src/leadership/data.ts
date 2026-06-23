@@ -221,7 +221,7 @@ export const LEADERSHIP_BY_STATE: Partial<Record<StateCode, LeadershipPosition[]
     { chamber: 'assembly', role: 'Speaker of the House', name: 'Emanuel "Chris" Welch' },
     { chamber: 'assembly', role: 'Speaker Pro Tempore', name: 'Kam Buckner' },
     { chamber: 'assembly', role: 'Majority Leader', name: 'Robyn Gabel' },
-    { chamber: 'assembly', role: 'Deputy Majority Leader', name: 'Elizabeth "Lisa" Hernandez' },
+    { chamber: 'assembly', role: 'Deputy Majority Leader', name: 'Lisa Hernandez' }, // "Elizabeth (Lisa) Hernandez" officially; roster lists "Lisa Hernandez"
     { chamber: 'assembly', role: 'Deputy Majority Leader', name: 'Robert "Bob" Rita' },
     { chamber: 'assembly', role: 'Majority Conference Chairperson', name: 'Theresa Mah' },
     { chamber: 'assembly', role: 'Minority Leader', name: 'Tony M. McCombie' },
