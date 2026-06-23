@@ -89,15 +89,38 @@ function StateLanding({ redirectTo = '/' }: { redirectTo?: string }) {
 function Shell() {
   const { chosen } = useStateCtx();
   const location = useLocation();
+  // The must-accept notice shows on every screen (including the landing overview)
+  // EXCEPT the legal pages, so users can read Privacy/Terms before accepting.
+  const onLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
+
   if (!chosen) {
+    // Legal pages stay reachable before a state is chosen (the disclaimer links to
+    // them) and render without the overlay so they can actually be read.
+    if (onLegalPage) {
+      return (
+        <div className="mx-auto min-h-screen px-4 py-8">
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+            </Routes>
+          </Suspense>
+        </div>
+      );
+    }
     // Preserve a first-time deep link (/bills/123, shared /foreign-affairs?region=…):
     // after a state is chosen, land on the originally-requested URL instead of '/'.
     const dest = location.pathname === '/welcome' ? '/' : location.pathname + location.search;
-    return <StateLanding redirectTo={dest} />;
+    return (
+      <>
+        <DisclaimerModal />
+        <StateLanding redirectTo={dest} />
+      </>
+    );
   }
   return (
     <>
-      <DisclaimerModal />
+      {!onLegalPage && <DisclaimerModal />}
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/welcome" element={<StateLanding />} />

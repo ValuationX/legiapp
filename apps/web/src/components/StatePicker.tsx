@@ -18,7 +18,7 @@ const GRID: [string, number, number][] = [
  *  highlighted + clickable; the rest are greyed "coming soon". `onPick` fires after
  *  a successful selection (e.g. to close a modal). */
 export function StatePicker({ onPick }: { onPick?: () => void }) {
-  const { state, setState, states } = useStateCtx();
+  const { state, setState, states, chosen } = useStateCtx();
   const available = new Set(states.map((s) => s.code));
 
   return (
@@ -26,7 +26,9 @@ export function StatePicker({ onPick }: { onPick?: () => void }) {
       <div className="mx-auto grid w-full max-w-xl gap-1.5" style={{ gridTemplateColumns: 'repeat(11, minmax(0, 1fr))' }}>
         {GRID.map(([code, row, col]) => {
           const on = available.has(code);
-          const current = state === code && on;
+          // Only ring a state once the user has actually chosen one — otherwise the
+          // default (CA) looks preselected on first launch.
+          const current = chosen && state === code && on;
           return (
             <button
               key={code}
