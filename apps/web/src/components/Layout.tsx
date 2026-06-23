@@ -20,11 +20,15 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Logo, LogoMark } from '@/components/Logo';
-import { SearchPalette } from '@/components/SearchPalette';
 import { StatePicker } from '@/components/StatePicker';
 import { useSettings } from '@/lib/settings';
 import { useStateCtx } from '@/lib/state';
 import { cn } from '@/lib/utils';
+
+// Lazy so cmdk only loads when the palette is first opened (keeps it out of the entry bundle).
+const SearchPalette = React.lazy(() =>
+  import('@/components/SearchPalette').then((m) => ({ default: m.SearchPalette })),
+);
 
 const NAV = [
   { to: '/', label: 'This Week', icon: LayoutDashboard, end: true },
@@ -261,7 +265,11 @@ export function Layout() {
         </main>
         <Footer />
       </div>
-      <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
+      {searchOpen ? (
+        <React.Suspense fallback={null}>
+          <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} />
+        </React.Suspense>
+      ) : null}
     </div>
   );
 }

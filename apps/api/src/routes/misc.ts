@@ -85,7 +85,14 @@ export async function miscRoutes(app: FastifyInstance) {
               (SELECT max(last_verified) FROM bill WHERE state = '${stateLit}') AS "lastVerified",
               (SELECT count(*)::int FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')) AS records`,
     );
-    return { recentlyMovedBills, upcomingHearings, upcomingDeadlines, dataFreshness };
+    // Scalar counts the dashboard used to fetch via two extra full-collection queries
+    // (committees('') + legislators('pageSize=1')); folded in here so the page makes one request.
+    const countRows = await query<{ committees: number; legislators: number }>(
+      `SELECT (SELECT count(*)::int FROM committee WHERE state = '${stateLit}') AS committees,
+              (SELECT count(*)::int FROM legislator WHERE state = '${stateLit}' AND active = true) AS legislators`,
+    );
+    const counts = countRows[0] ?? { committees: 0, legislators: 0 };
+    return { recentlyMovedBills, upcomingHearings, upcomingDeadlines, dataFreshness, counts };
   });
 
   // Source / freshness transparency.

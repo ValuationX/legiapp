@@ -33,7 +33,8 @@ export async function committeeRoutes(app: FastifyInstance) {
               (SELECT count(*)::int FROM committee_membership cm WHERE cm.committee_id = c.id) AS "memberCount",
               COALESCE((SELECT json_agg(json_build_object('legislatorId', l.id, 'fullName', l.full_name,
                                                           'party', l.party, 'chamber', l.chamber,
-                                                          'district', l.district, 'role', cm.role)
+                                                          'district', l.district, 'districtLabel', l.district_label,
+                                                          'role', cm.role)
                                         ORDER BY cm.role, l.full_name)
                         FROM committee_membership cm JOIN legislator l ON l.id = cm.legislator_id
                         WHERE cm.committee_id = c.id), '[]') AS members,
@@ -51,6 +52,9 @@ export async function committeeRoutes(app: FastifyInstance) {
   });
 
   // Bills currently located in this committee (referred / in process).
+  // The committee id is the state-prefixed 'CA:<code>' while bill.current_location_code
+  // stores the bare '<code>', so compare each part separately (current_location_code
+  // is not unique across states, hence the explicit state filter).
   app.get('/api/committees/:id/bills', async (req) => {
     const { id } = req.params as { id: string };
     return query(
@@ -58,7 +62,8 @@ export async function committeeRoutes(app: FastifyInstance) {
               b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",
               b.last_action_date AS "lastActionDate", b.last_action_description AS "lastActionDescription",
               b.source, b.last_verified AS "lastVerified", b.conflict
-       FROM bill b WHERE b.current_location_code = $1
+       FROM bill b
+       WHERE b.current_location_code = split_part($1, ':', 2) AND b.state = split_part($1, ':', 1)
        ORDER BY b.last_action_date DESC NULLS LAST LIMIT 200`,
       [id],
     );

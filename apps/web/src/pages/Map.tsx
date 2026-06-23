@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { MemberAvatar, PageHeader, PartyBadge } from '@/components/common';
 import { api, type DistrictCollection, type DistrictFeature } from '@/lib/api';
 import { partyColor } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 type Chamber = 'assembly' | 'senate';
@@ -27,9 +27,12 @@ export default function MapPage() {
     null,
   );
   const sl = useStateLabels();
+  const { state } = useStateCtx();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const geoRef = React.useRef<any>(null);
 
-  const asm = useQuery({ queryKey: ['districts', 'assembly'], queryFn: () => api.districts('assembly') });
-  const sen = useQuery({ queryKey: ['districts', 'senate'], queryFn: () => api.districts('senate') });
+  const asm = useQuery({ queryKey: ['districts', state, 'assembly'], queryFn: () => api.districts('assembly') });
+  const sen = useQuery({ queryKey: ['districts', state, 'senate'], queryFn: () => api.districts('senate') });
   const active = layer === 'assembly' ? asm.data : sen.data;
 
   const onPick = (lng: number, lat: number) => {
@@ -48,16 +51,25 @@ export default function MapPage() {
   const selectedNum =
     layer === 'assembly' ? picked?.assembly?.properties.district : picked?.senate?.properties.district;
 
-  const style = (feature?: { properties?: DistrictFeature['properties'] }) => {
-    const props = feature?.properties;
-    const selected = props?.district === selectedNum;
-    return {
-      color: selected ? '#0f172a' : '#ffffff',
-      weight: selected ? 2.5 : 0.7,
-      fillColor: partyColor(props?.party),
-      fillOpacity: selected ? 0.75 : 0.45,
-    };
-  };
+  const style = React.useCallback(
+    (feature?: { properties?: DistrictFeature['properties'] }) => {
+      const props = feature?.properties;
+      const selected = props?.district === selectedNum;
+      return {
+        color: selected ? '#0f172a' : '#ffffff',
+        weight: selected ? 2.5 : 0.7,
+        fillColor: partyColor(props?.party),
+        fillOpacity: selected ? 0.75 : 0.45,
+      };
+    },
+    [selectedNum],
+  );
+
+  // react-leaflet's GeoJSON layer is immutable, so re-style the existing polygons
+  // imperatively on selection instead of remounting the whole layer (O(1) vs O(features)).
+  React.useEffect(() => {
+    geoRef.current?.setStyle(style);
+  }, [style]);
 
   return (
     <div>
@@ -90,7 +102,7 @@ export default function MapPage() {
             />
             {active ? (
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              <GeoJSON key={`${layer}-${selectedNum ?? 'none'}`} data={active as any} style={style as any} />
+              <GeoJSON ref={geoRef} key={layer} data={active as any} style={style as any} />
             ) : null}
             <ClickProbe onPick={onPick} />
           </MapContainer>

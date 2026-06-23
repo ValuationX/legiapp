@@ -5,7 +5,7 @@ import { ErrorState, PageHeader, SourceBadge, StatusBadge } from '@/components/c
 import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { calendarTypeMeta, chamberLabel, formatCalendarDate, formatDate } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 
 function Stat({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: React.ReactNode }) {
   return (
@@ -24,11 +24,11 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Users; label: string;
 }
 
 export default function Dashboard() {
-  const week = useQuery({ queryKey: ['this-week'], queryFn: api.thisWeek });
-  const legs = useQuery({ queryKey: ['legislators-total'], queryFn: () => api.legislators('pageSize=1') });
-  const cmtes = useQuery({ queryKey: ['committees-all'], queryFn: () => api.committees('') });
+  const { state } = useStateCtx();
+  const week = useQuery({ queryKey: ['this-week', state], queryFn: api.thisWeek });
 
   const fresh = week.data?.dataFreshness?.[0];
+  const counts = week.data?.counts;
   const sl = useStateLabels();
 
   return (
@@ -37,14 +37,14 @@ export default function Dashboard() {
         title="This Week"
         subtitle={`Upcoming hearings and recently moved bills across the ${sl.name} Legislature.`}
       >
-        {fresh ? <SourceBadge source={fresh.source} lastVerified={fresh.lastVerified} /> : null}
+        {fresh?.source ? <SourceBadge source={fresh.source} lastVerified={fresh.lastVerified} /> : null}
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 [&>*]:min-w-0">
         <Stat icon={FileText} label="Bills tracked" value={fresh?.records?.toLocaleString() ?? <Skeleton className="h-7 w-16" />} />
         <Stat icon={Gavel} label="Recently moved" value={week.data ? week.data.recentlyMovedBills.length : <Skeleton className="h-7 w-10" />} />
         <Stat icon={CalendarClock} label="Upcoming hearings" value={week.data ? week.data.upcomingHearings.length : <Skeleton className="h-7 w-10" />} />
-        <Stat icon={Users} label="Legislators" value={legs.data?.total ?? <Skeleton className="h-7 w-10" />} />
+        <Stat icon={Users} label="Legislators" value={counts?.legislators?.toLocaleString() ?? <Skeleton className="h-7 w-10" />} />
       </div>
 
       <Card className="mt-6">
@@ -57,7 +57,9 @@ export default function Dashboard() {
           </Link>
         </CardHeader>
         <CardContent>
-          {week.isLoading ? (
+          {week.isError ? (
+            <ErrorState error={week.error} />
+          ) : week.isLoading ? (
             <div className="grid gap-2 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -143,7 +145,9 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            {week.isLoading ? (
+            {week.isError ? (
+              <ErrorState error={week.error} />
+            ) : week.isLoading ? (
               <SkeletonList />
             ) : week.data?.recentlyMovedBills.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No recent movement.</p>
@@ -175,7 +179,7 @@ export default function Dashboard() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        {cmtes.data ? `${cmtes.data.length} committees · ` : ''}Data for {sl.name} normalized from{' '}
+        {counts ? `${counts.committees} committees · ` : ''}Data for {sl.name} normalized from{' '}
         {sl.name === 'California' ? 'the official California Legislature PUBINFO dataset' : 'the Open States project'}.
       </p>
     </div>

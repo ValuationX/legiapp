@@ -15,6 +15,10 @@ export type SponsorType = z.infer<typeof SponsorType>;
 export const CommitteeRole = z.enum(['chair', 'vice_chair', 'member']);
 export type CommitteeRole = z.infer<typeof CommitteeRole>;
 
+/** A member's stance on a topic — mirrors the Postgres `stance` enum. */
+export const Stance = z.enum(['support', 'oppose', 'mixed', 'neutral', 'unknown']);
+export type Stance = z.infer<typeof Stance>;
+
 /** Provenance carried on user-facing records (the accuracy contract). */
 export const Provenance = z.object({
   source: z.string(),
@@ -39,7 +43,9 @@ export const LegislatorSummary = Provenance.extend({
   lastName: z.string().nullable(),
   party: z.string().nullable(),
   chamber: Chamber,
-  district: z.number().int(),
+  // Nullable for named-district states (e.g. MA), which carry the label instead.
+  district: z.number().int().nullable(),
+  districtLabel: z.string().nullable().optional(),
   photoUrl: z.string().nullable(),
   nextElectionYear: z.number().int().nullable(),
   inOffice: z.boolean().default(true), // member of the current session
@@ -49,7 +55,7 @@ export type LegislatorSummary = z.infer<typeof LegislatorSummary>;
 
 export const MemberPosition = z.object({
   topic: z.string(),
-  stance: z.enum(['support', 'oppose', 'mixed', 'neutral', 'unknown']),
+  stance: Stance,
   note: z.string().nullable(),
   billId: z.string().nullable(),
   billIdentifier: z.string().nullable(),
@@ -272,8 +278,9 @@ export const DashboardThisWeek = z.object({
   upcomingHearings: z.array(UpcomingHearing),
   upcomingDeadlines: z.array(CalendarEvent).default([]),
   dataFreshness: z.array(
-    z.object({ source: z.string(), lastVerified: z.string().nullable(), records: z.number().int() }),
+    z.object({ source: z.string().nullable(), lastVerified: z.string().nullable(), records: z.number().int() }),
   ),
+  counts: z.object({ committees: z.number().int(), legislators: z.number().int() }).default({ committees: 0, legislators: 0 }),
 });
 export type DashboardThisWeek = z.infer<typeof DashboardThisWeek>;
 
@@ -324,7 +331,7 @@ export const LegislatorQuery = z.object({
   district: z.coerce.number().int().optional(),
   reelectionYear: z.coerce.number().int().optional(),
   positionTopic: z.string().optional(),
-  positionStance: z.string().optional(),
+  positionStance: Stance.optional(),
   // Session filter: omitted = current roster only; "all" = every session; or an 8-digit session_year.
   session: z.string().optional(),
   q: z.string().optional(),

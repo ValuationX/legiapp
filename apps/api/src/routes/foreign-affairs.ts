@@ -82,9 +82,12 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
                        ORDER BY sp.type, sp.legislator_name)
                 FROM sponsorship sp LEFT JOIN legislator l ON l.id = sp.legislator_id
                 WHERE sp.bill_id = b.id), '[]') AS sponsors,
-              (SELECT ve.ayes FROM vote_event ve WHERE ve.bill_id = b.id AND ve.is_floor ORDER BY ve.date DESC LIMIT 1) AS ayes,
-              (SELECT ve.noes FROM vote_event ve WHERE ve.bill_id = b.id AND ve.is_floor ORDER BY ve.date DESC LIMIT 1) AS noes
+              v.ayes, v.noes
        FROM fa JOIN bill b ON b.id = fa.bill_id
+       LEFT JOIN LATERAL (
+         SELECT ve.ayes, ve.noes FROM vote_event ve
+         WHERE ve.bill_id = b.id AND ve.is_floor ORDER BY ve.date DESC LIMIT 1
+       ) v ON true
        WHERE b.state = '${stateLit}'
        ORDER BY b.last_action_date DESC NULLS LAST, b.introduced_date DESC NULLS LAST`,
       billParams,
@@ -128,7 +131,7 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
            AND s.bill_id IN (
              SELECT bs.bill_id FROM bill_subject bs JOIN bill bb ON bb.id = bs.bill_id
              WHERE bb.state = '${stateLit}' AND bs.source = 'foreign-affairs' ${leaderFilter})
-         GROUP BY lower(l.last_name), l.chamber
+         GROUP BY lower(l.last_name), lower(coalesce(l.first_name, '')), l.chamber
        ) t
        ORDER BY score DESC, authored DESC, name`,
       leaderParams,

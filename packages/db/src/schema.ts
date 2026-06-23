@@ -351,6 +351,9 @@ export const bill = pgTable(
     byOrigin: index('bill_origin_idx').on(t.chamberOfOrigin),
     byLastAction: index('bill_last_action_idx').on(t.lastActionDate),
     byIdentifier: index('bill_identifier_idx').on(t.identifier),
+    // /api/committees/:id/bills filters on current_location_code; index it so that
+    // lookup is not a seq scan over the whole bill table.
+    byLocationCode: index('bill_current_location_code_idx').on(t.currentLocationCode),
   }),
 );
 

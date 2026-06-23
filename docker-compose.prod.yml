@@ -56,8 +56,6 @@ services:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/legiapp
       API_PORT: '4000'
       NODE_ENV: production
-      # Shared access code that gates the whole site. Set a strong value.
-      ACCESS_CODE: ${ACCESS_CODE:?set ACCESS_CODE in .env.prod}
       # Same-origin behind Caddy, so CORS is moot; set for completeness.
       WEB_ORIGIN: ${WEB_ORIGIN:-https://localhost}
     depends_on:

@@ -7,11 +7,15 @@ import { useNavigate } from 'react-router-dom';
 import { Snippet } from '@/components/common';
 import { api } from '@/lib/api';
 import { chamberLabel, partyMeta } from '@/lib/format';
+import { useSettings } from '@/lib/settings';
+import { useStateCtx } from '@/lib/state';
 
 export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const [q, setQ] = React.useState('');
   const [debounced, setDebounced] = React.useState('');
   const navigate = useNavigate();
+  const { state } = useStateCtx();
+  const { showForeignAffairs } = useSettings();
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 180);
@@ -19,7 +23,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
   }, [q]);
 
   const { data, isFetching } = useQuery({
-    queryKey: ['search', debounced],
+    queryKey: ['search', state, debounced],
     queryFn: () => api.search(debounced),
     enabled: open && debounced.length >= 2,
   });
@@ -48,7 +52,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
           value={q}
           onValueChange={setQ}
           placeholder="Search members, bills, committees…"
-          className="w-full border-b bg-transparent px-4 py-3.5 text-sm outline-none placeholder:text-muted-foreground"
+          className="w-full border-b bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-muted-foreground sm:text-sm"
         />
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
           {debounced.length < 2 ? (
@@ -62,7 +66,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
               </Command.Empty>
 
               {(() => {
-                const regionKey = matchRegions(debounced)[0];
+                const regionKey = showForeignAffairs ? matchRegions(debounced)[0] : undefined;
                 const fa = regionKey ? FA_REGION_BY_KEY.get(regionKey) : undefined;
                 return fa ? (
                   <Command.Group heading="Tracker" className="px-1 text-xs font-medium text-muted-foreground">

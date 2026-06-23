@@ -8,7 +8,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleto
 import { api } from '@/lib/api';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { alignmentMeta, formatDate, partyMeta } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 function SponsorChip({ s }: { s: FaSponsor }) {
@@ -119,8 +119,9 @@ export default function ForeignAffairs() {
   const region = params.get('region') ?? '';
   const setRegion = (r: string) => setParams(r ? { region: r } : {}, { replace: true });
   const sl = useStateLabels();
+  const { state } = useStateCtx();
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['foreign-affairs', region],
+    queryKey: ['foreign-affairs', state, region],
     queryFn: () => api.foreignAffairs(region ? `region=${region}` : ''),
   });
 
