@@ -44,33 +44,37 @@ export async function billRoutes(app: FastifyInstance) {
     if (q.sponsor) add('EXISTS (SELECT 1 FROM sponsorship s WHERE s.bill_id = b.id AND s.legislator_id = ?)', q.sponsor);
     if (q.subject) add('EXISTS (SELECT 1 FROM bill_subject bs WHERE bs.bill_id = b.id AND bs.subject = ?)', q.subject);
 
-    // Full-text search across identifier + title + digest + full body text.
+    // Full-text search across identifier + title + digest + full body text. Parse the
+    // query string once into a CTE (`tsq`) and reuse it in WHERE / ts_headline / ts_rank
+    // instead of calling websearch_to_tsquery three times per request.
     let tsIdx = 0;
     if (q.q) {
       params.push(q.q);
       tsIdx = params.length;
-      where.push(`b.search_tsv @@ websearch_to_tsquery('english', $${tsIdx})`);
+      where.push(`b.search_tsv @@ tsq.q`);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const tsCte = tsIdx ? `WITH tsq AS (SELECT websearch_to_tsquery('english', $${tsIdx}) AS q) ` : '';
+    const tsFrom = tsIdx ? ' CROSS JOIN tsq' : '';
 
     const countRows = await query<{ count: number }>(
-      `SELECT count(*)::int AS count FROM bill b ${whereSql}`,
+      `${tsCte}SELECT count(*)::int AS count FROM bill b${tsFrom} ${whereSql}`,
       params,
     );
     const count = countRows[0]?.count ?? 0;
 
     const snippet = tsIdx
       ? `, ts_headline('english', coalesce(b.digest, b.title, b.full_text, ''),
-           websearch_to_tsquery('english', $${tsIdx}),
+           tsq.q,
            'StartSel=«,StopSel=»,MaxFragments=1,MaxWords=30,MinWords=12,ShortWord=2') AS "matchSnippet"`
       : '';
     const order = tsIdx
-      ? `ts_rank(b.search_tsv, websearch_to_tsquery('english', $${tsIdx})) DESC, b.last_action_date DESC NULLS LAST`
+      ? `ts_rank(b.search_tsv, tsq.q) DESC, b.last_action_date DESC NULLS LAST`
       : 'b.last_action_date DESC NULLS LAST';
 
     params.push(q.pageSize, (q.page - 1) * q.pageSize);
     const items = await query(
-      `SELECT ${SUMMARY_COLS}${snippet} FROM bill b ${whereSql}
+      `${tsCte}SELECT ${SUMMARY_COLS}${snippet} FROM bill b${tsFrom} ${whereSql}
        ORDER BY ${order}
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,

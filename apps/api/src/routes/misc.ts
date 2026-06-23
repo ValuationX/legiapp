@@ -19,17 +19,18 @@ export async function miscRoutes(app: FastifyInstance) {
         [like, limit, state],
       ),
       query(
-        `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
+        `WITH tsq AS (SELECT websearch_to_tsquery('english', $1) AS q)
+         SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
                 b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",
                 b.last_action_date AS "lastActionDate", b.last_action_description AS "lastActionDescription",
                 b.source, b.last_verified AS "lastVerified", b.conflict,
                 ts_headline('english', coalesce(b.digest, b.title, b.full_text, ''),
-                  websearch_to_tsquery('english', $1),
+                  tsq.q,
                   'StartSel=«,StopSel=»,MaxFragments=1,MaxWords=24,MinWords=8') AS "matchSnippet"
-         FROM bill b
-         WHERE b.state = $4 AND (b.search_tsv @@ websearch_to_tsquery('english', $1) OR b.identifier ILIKE $2)
+         FROM bill b CROSS JOIN tsq
+         WHERE b.state = $4 AND (b.search_tsv @@ tsq.q OR b.identifier ILIKE $2)
          ORDER BY (b.identifier ILIKE $2) DESC,
-                  ts_rank(b.search_tsv, websearch_to_tsquery('english', $1)) DESC,
+                  ts_rank(b.search_tsv, tsq.q) DESC,
                   b.last_action_date DESC NULLS LAST
          LIMIT $3`,
         [q, like, limit, state],
@@ -47,50 +48,54 @@ export async function miscRoutes(app: FastifyInstance) {
   // "This week" dashboard: recently moved bills + upcoming hearings + freshness.
   app.get('/api/dashboard/this-week', async (req) => {
     const stateLit = stateOf(req);
-    const recentlyMovedBills = await query(
-      `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
-              b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",
-              b.last_action_date AS "lastActionDate", b.last_action_description AS "lastActionDescription",
-              b.source, b.last_verified AS "lastVerified", b.conflict
-       FROM bill b
-       WHERE b.state = '${stateLit}'
-         AND b.session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')
-         AND b.last_action_date >= (
-           SELECT max(last_action_date) - interval '14 days' FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}'))
-       ORDER BY b.last_action_date DESC NULLS LAST
-       LIMIT 25`,
-    );
-    const upcomingHearings = await query(
-      `SELECT ch.id, ch.hearing_date AS date, ch.committee_id AS "committeeId", c.name AS "committeeName",
-              ch.bill_id AS "billId", b.identifier AS "billIdentifier", b.title AS "billTitle"
-       FROM committee_hearing ch
-       LEFT JOIN committee c ON c.id = ch.committee_id
-       JOIN bill b ON b.id = ch.bill_id
-       WHERE b.state = '${stateLit}' AND ch.hearing_date >= date_trunc('day', now())
-       ORDER BY ch.hearing_date ASC
-       LIMIT 30`,
-    );
-    // Nearest legislative deadlines + election milestones (the influence windows).
-    const upcomingDeadlines = await query(
-      `SELECT id, date, type, title, detail,
-              deadline_flag AS "deadlineFlag", source_url AS "sourceUrl",
-              committee_id AS "committeeId", source, last_verified AS "lastVerified", conflict
-       FROM calendar_event
-       WHERE state = '${stateLit}' AND date >= date_trunc('day', now()) AND (deadline_flag = true OR type = 'election')
-       ORDER BY date ASC
-       LIMIT 8`,
-    );
-    const dataFreshness = await query(
-      `SELECT (SELECT source FROM bill WHERE state = '${stateLit}' GROUP BY source ORDER BY count(*) DESC LIMIT 1) AS source,
-              (SELECT max(last_verified) FROM bill WHERE state = '${stateLit}') AS "lastVerified",
-              (SELECT count(*)::int FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')) AS records`,
-    );
-    // Scalar counts the dashboard used to fetch via two extra full-collection queries
-    // (committees('') + legislators('pageSize=1')); folded in here so the page makes one request.
-    const countRows = await query<{ committees: number; legislators: number }>(
-      `SELECT (SELECT count(*)::int FROM committee WHERE state = '${stateLit}') AS committees,
-              (SELECT count(*)::int FROM legislator WHERE state = '${stateLit}' AND active = true) AS legislators`,
-    );
+    // The five panels are independent, so run them as one parallel batch instead of five
+    // serial round-trips — this is the landing page's main payload.
+    const [recentlyMovedBills, upcomingHearings, upcomingDeadlines, dataFreshness, countRows] = await Promise.all([
+      query(
+        `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
+                b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",
+                b.last_action_date AS "lastActionDate", b.last_action_description AS "lastActionDescription",
+                b.source, b.last_verified AS "lastVerified", b.conflict
+         FROM bill b
+         WHERE b.state = '${stateLit}'
+           AND b.session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')
+           AND b.last_action_date >= (
+             SELECT max(last_action_date) - interval '14 days' FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}'))
+         ORDER BY b.last_action_date DESC NULLS LAST
+         LIMIT 25`,
+      ),
+      query(
+        `SELECT ch.id, ch.hearing_date AS date, ch.committee_id AS "committeeId", c.name AS "committeeName",
+                ch.bill_id AS "billId", b.identifier AS "billIdentifier", b.title AS "billTitle"
+         FROM committee_hearing ch
+         LEFT JOIN committee c ON c.id = ch.committee_id
+         JOIN bill b ON b.id = ch.bill_id
+         WHERE b.state = '${stateLit}' AND ch.hearing_date >= date_trunc('day', now())
+         ORDER BY ch.hearing_date ASC
+         LIMIT 30`,
+      ),
+      // Nearest legislative deadlines + election milestones (the influence windows).
+      query(
+        `SELECT id, date, type, title, detail,
+                deadline_flag AS "deadlineFlag", source_url AS "sourceUrl",
+                committee_id AS "committeeId", source, last_verified AS "lastVerified", conflict
+         FROM calendar_event
+         WHERE state = '${stateLit}' AND date >= date_trunc('day', now()) AND (deadline_flag = true OR type = 'election')
+         ORDER BY date ASC
+         LIMIT 8`,
+      ),
+      query(
+        `SELECT (SELECT source FROM bill WHERE state = '${stateLit}' GROUP BY source ORDER BY count(*) DESC LIMIT 1) AS source,
+                (SELECT max(last_verified) FROM bill WHERE state = '${stateLit}') AS "lastVerified",
+                (SELECT count(*)::int FROM bill WHERE state = '${stateLit}' AND session_year = (SELECT max(session_year) FROM bill WHERE state = '${stateLit}')) AS records`,
+      ),
+      // Scalar counts the dashboard used to fetch via two extra full-collection queries
+      // (committees('') + legislators('pageSize=1')); folded in here so the page makes one request.
+      query<{ committees: number; legislators: number }>(
+        `SELECT (SELECT count(*)::int FROM committee WHERE state = '${stateLit}') AS committees,
+                (SELECT count(*)::int FROM legislator WHERE state = '${stateLit}' AND active = true) AS legislators`,
+      ),
+    ]);
     const counts = countRows[0] ?? { committees: 0, legislators: 0 };
     return { recentlyMovedBills, upcomingHearings, upcomingDeadlines, dataFreshness, counts };
   });

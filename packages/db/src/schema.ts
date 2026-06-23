@@ -410,6 +410,9 @@ export const sponsorship = pgTable(
   (t) => ({
     byBill: index('sponsorship_bill_idx').on(t.billId),
     byLegislator: index('sponsorship_legislator_idx').on(t.legislatorId),
+    // Composite for the foreign-affairs leaderboard, which joins on legislator_id and
+    // filters bill_id IN (…FA bills…) — lets that run as an index-only scan.
+    byLegislatorBill: index('sponsorship_legislator_bill_idx').on(t.legislatorId, t.billId),
     uniqueRow: uniqueIndex('sponsorship_unique').on(t.billId, t.legislatorName, t.type),
   }),
 );
