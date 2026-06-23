@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
@@ -98,7 +99,21 @@ function Shell() {
     // them) and render without the overlay so they can actually be read.
     if (onLegalPage) {
       return (
-        <div className="mx-auto min-h-screen px-4 py-8">
+        <div className="mx-auto min-h-screen max-w-3xl px-4 py-6">
+          {/* A way back: without a sidebar yet (no state chosen), the legal page would
+              otherwise be a dead end after following the disclaimer link. */}
+          <div className="mb-6 flex items-center justify-between">
+            <Link to="/" aria-label="Bill Aid home" className="inline-flex">
+              <Logo size={28} />
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Bill Aid
+            </Link>
+          </div>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/privacy" element={<Privacy />} />
