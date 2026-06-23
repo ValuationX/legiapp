@@ -30,6 +30,11 @@ const lastName = (n?: string) => (n ?? '').trim().split(/\s+/).pop() ?? '';
 const ocdShort = (id?: string) => (id ?? '').split('/').pop() ?? '';
 const chamberOf = (c?: string) => (c === 'upper' ? 'senate' : c === 'lower' ? 'assembly' : null);
 const sessionStartYear = (s?: string) => Number.parseInt(String(s ?? '').slice(0, 4), 10) || 0;
+// Some states use ordinal session names ("104th", "57th Legislature …") that don't start
+// with a year, so also derive the year from the bill's action dates for the FA 2022+ filter.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const billYear = (b: any) =>
+  Number.parseInt(String(b?.latest_action_date || b?.first_action_date || b?.updated_at || '').slice(0, 4), 10) || 0;
 
 function parseMeasure(identifier: string): { measureType: string; measureNum: number } {
   const m = identifier.replace(/\s+/g, ' ').trim().match(/^([A-Za-z.]+)\s*0*(\d+)/);
@@ -152,7 +157,7 @@ async function upsertBill(
          status=EXCLUDED.status, last_action_date=EXCLUDED.last_action_date, last_verified=now()`,
       [id, st.code, billSession, billSession, measureType, measureNum, identifier,
        chamberOf(b.from_organization?.classification), b.title ?? null, summary,
-       b.latest_action_description ?? null, b.latest_action_date ?? b.updated_at ?? null,
+       b.latest_action_description ?? null, b.latest_action_date || b.updated_at || null, // `||` so empty-string dates → null
        b.first_action_date ? String(b.first_action_date).slice(0, 10) : null],
     );
     await client.query(`DELETE FROM sponsorship WHERE bill_id=$1`, [id]);
@@ -181,13 +186,13 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
   const seen = new Set<string>();
   let fa = 0;
   let recent = 0;
-  const params = { jurisdiction: st.openStatesJurisdiction, include: ['sponsorships', 'abstracts'], per_page: 50 };
+  const params = { jurisdiction: st.openStatesJurisdiction, include: ['sponsorships', 'abstracts'], per_page: 20 }; // OS v3 /bills caps per_page at 20
 
   // 1) Foreign-affairs bills, all sessions >= 2022, via targeted searches
   for (const region of FA_REGIONS) {
     for (const term of SEARCH_TERMS[region.key] ?? [region.label]) {
       for await (const b of paginate<any>('/bills', { ...params, q: term, sort: 'latest_action_desc' })) {
-        if (sessionStartYear(b.session) < MIN_SESSION_YEAR) continue;
+        if (Math.max(sessionStartYear(b.session), billYear(b)) < MIN_SESSION_YEAR) continue;
         const id = billId(st, b.session, b.identifier ?? '');
         if (seen.has(id)) continue;
         seen.add(id);

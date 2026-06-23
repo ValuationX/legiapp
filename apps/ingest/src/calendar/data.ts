@@ -181,4 +181,20 @@ export const CALENDAR: Partial<Record<StateCode, StateCalEvent[]>> = {
     { slug: 'general-registration-deadline', date: '2026-10-24', type: 'deadline', title: 'Voter registration deadline (general)', detail: 'Deadline to register to vote in the November 3, 2026 state election.', deadline: true, sourceUrl: 'https://www.sec.state.ma.us/divisions/elections/' },
     { slug: 'general-election', date: '2026-11-03', type: 'election', title: 'State General Election', detail: 'Massachusetts 2026 general election.', deadline: false, sourceUrl: 'https://www.sec.state.ma.us/divisions/elections/' },
   ],
+  IL: [
+    { slug: 'session-convene', date: '2026-01-07', type: 'session', title: '2026 session reconvenes', detail: 'First 2026 session day for the Illinois General Assembly (104th GA, second year).', deadline: false, sourceUrl: 'https://www.ilga.gov/' },
+    { slug: 'primary-filing-first-day', date: '2025-10-27', type: 'deadline', title: 'First day to file nomination papers (primary)', detail: 'First day to file nomination papers for the 2026 General Primary.', deadline: true, sourceUrl: 'https://elections.il.gov/' },
+    { slug: 'primary-filing-last-day', date: '2025-11-03', type: 'deadline', title: 'Last day to file nomination papers (primary)', detail: 'Last day to file nomination papers for the 2026 General Primary.', deadline: true, sourceUrl: 'https://elections.il.gov/' },
+    { slug: 'primary-registration-close', date: '2026-02-17', type: 'deadline', title: 'Close of voter registration (primary)', detail: 'Last day for regular voter registration before the General Primary.', deadline: true, sourceUrl: 'https://elections.il.gov/' },
+    { slug: 'primary-online-registration-close', date: '2026-03-01', type: 'deadline', title: 'Close of online voter registration (primary)', detail: 'Last day to register online before the General Primary.', deadline: true, sourceUrl: 'https://elections.il.gov/' },
+    { slug: 'general-primary', date: '2026-03-17', type: 'election', title: '2026 General Primary Election', detail: 'Illinois statewide general primary election.', deadline: false, sourceUrl: 'https://elections.il.gov/' },
+    { slug: 'general-election', date: '2026-11-03', type: 'election', title: '2026 General Election', detail: 'Illinois statewide general election.', deadline: false, sourceUrl: 'https://elections.il.gov/' },
+  ],
+  AZ: [
+    { slug: 'session-convene', date: '2026-01-12', type: 'session', title: '57th Legislature, Second Regular Session convenes', detail: 'The Arizona Legislature convenes its 2026 second regular session.', deadline: false, sourceUrl: 'https://www.azleg.gov/' },
+    { slug: 'candidate-filing-deadline', date: '2026-03-23', type: 'deadline', title: 'Candidate filing deadline', detail: 'Deadline (5 p.m.) to file nomination papers with the Secretary of State for the 2026 election.', deadline: true, sourceUrl: 'https://azsos.gov/elections/candidates/candidate-filing' },
+    { slug: 'general-registration-deadline', date: '2026-10-05', type: 'deadline', title: 'Voter registration deadline (general)', detail: 'Last day to register to vote for the 2026 general election (29 days before).', deadline: true, sourceUrl: 'https://azsos.gov/elections/vote' },
+    { slug: 'primary-election', date: '2026-07-21', type: 'election', title: '2026 Primary Election', detail: 'Arizona statewide primary election (July 21, 2026 under HB2022).', deadline: false, sourceUrl: 'https://azsos.gov/elections/election-information/2026-election-info' },
+    { slug: 'general-election', date: '2026-11-03', type: 'election', title: '2026 General Election', detail: 'Arizona statewide general election.', deadline: false, sourceUrl: 'https://azsos.gov/elections/election-information/2026-election-info' },
+  ],
 };
