@@ -31,8 +31,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  // Load the registry once (the access cookie is already set by the time this
-  // provider mounts, since it lives inside the authorized branch).
+  // Load the available-states registry once on mount.
   React.useEffect(() => {
     api.meta
       .states()

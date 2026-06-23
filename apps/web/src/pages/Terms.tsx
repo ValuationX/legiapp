@@ -2,7 +2,7 @@ import * as React from 'react';
 import { PageHeader } from '@/components/common';
 import { Card, CardContent } from '@/components/ui/primitives';
 
-const UPDATED = 'June 22, 2026';
+const UPDATED = 'June 23, 2026';
 
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -39,13 +39,24 @@ export default function Terms() {
 
           <Sec title="Acceptable use">
             <ul className="list-disc space-y-1.5 pl-5">
-              <li>The shared access code is for authorized users only; do not share it outside your organization.</li>
               <li>
                 Do not attempt to disrupt, overload, scrape in bulk, reverse-engineer, or gain unauthorized access to
                 the service or its underlying systems.
               </li>
               <li>Use the information lawfully and responsibly.</li>
             </ul>
+          </Sec>
+
+          <Sec title="Advertising & third-party services">
+            <p>
+              Bill Aid is free and supported by advertising. We display ads through Google AdSense and use Vercel for
+              hosting and privacy-friendly analytics; these third parties may collect data as described in our{' '}
+              <a href="/privacy" className="text-primary underline underline-offset-2">
+                Privacy Policy
+              </a>
+              . Ads and any third-party links are not endorsements, and we are not responsible for third-party content
+              or websites.
+            </p>
           </Sec>
 
           <Sec title="Limitation of liability">

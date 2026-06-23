@@ -30,18 +30,6 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function send<T>(method: 'POST' | 'DELETE' | 'PUT', path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    credentials: 'same-origin',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
-}
-
 async function errorMessage(res: Response): Promise<string> {
   const text = await res.text().catch(() => '');
   try {
@@ -148,14 +136,5 @@ export const api = {
   sources: () => get<SourceStatus[]>(`/meta/sources`),
   meta: {
     states: () => get<StateMeta[]>(`/meta/states`),
-  },
-
-  // ── Shared access-code gate ──
-  access: {
-    status: () => get<{ authorized: boolean }>(`/access/status`),
-    submit: (code: string) =>
-      send<{ ok: boolean }>('POST', `/access`, { code })
-        .then(() => true)
-        .catch(() => false),
   },
 };
