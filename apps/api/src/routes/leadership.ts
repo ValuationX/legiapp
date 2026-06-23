@@ -9,7 +9,7 @@ export async function leadershipRoutes(app: FastifyInstance) {
     const stateLit = stateOf(req);
     return query(
       `SELECT lr.role, l.chamber, l.id AS "legislatorId", l.full_name AS "fullName",
-              l.party, l.district, l.photo_url AS "photoUrl", l.email, l.phone, l.website,
+              l.party, l.district, l.district_label AS "districtLabel", l.photo_url AS "photoUrl", l.email, l.phone, l.website,
               COALESCE((
                 SELECT json_agg(json_build_object(
                          'id', b.id, 'identifier', b.identifier, 'type', s.type,

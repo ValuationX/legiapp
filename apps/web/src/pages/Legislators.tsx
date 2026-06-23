@@ -9,7 +9,7 @@ import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { chamberLabel, partyMeta } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
 
 export default function Legislators() {
@@ -21,6 +21,7 @@ export default function Legislators() {
   const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
   const [sort, setSort] = React.useState<'district' | 'party' | 'name'>('district');
   const sl = useStateLabels();
+  const { state } = useStateCtx();
   const { showForeignAffairs } = useSettings();
 
   // Roster fits one page (largest state is PA at 253) — fetch all, render without pagination.
@@ -35,7 +36,7 @@ export default function Legislators() {
   if (q) qs.set('q', q);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['legislators', qs.toString()],
+    queryKey: ['legislators', state, qs.toString()],
     queryFn: () => api.legislators(qs.toString()),
   });
   const items = data?.items ?? [];
@@ -142,7 +143,7 @@ export default function Legislators() {
                       <PartyBadge party={l.party} />
                     </TD>
                     <TD className="text-sm">{chamberLabel(l.chamber)}</TD>
-                    <TD className="tabular text-sm">{l.district}</TD>
+                    <TD className="tabular text-sm">{l.districtLabel ?? l.district}</TD>
                     <TD>
                       <div className="flex flex-wrap gap-1">
                         {l.leadershipRoles.map((r) => (
@@ -191,7 +192,7 @@ function MemberGalleryCard({ l }: { l: LegislatorSummary }) {
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium leading-tight group-hover:text-primary">{l.fullName}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {chamberLabel(l.chamber)} · District {l.district}
+            {chamberLabel(l.chamber)} · {l.districtLabel ?? `District ${l.district}`}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             <PartyBadge party={l.party} />

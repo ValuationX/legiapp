@@ -5,7 +5,6 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyError } from 'fastify';
 import { ZodError } from 'zod';
 import { ping } from './db.js';
-import { accessRoutes } from './routes/access.js';
 import { billRoutes } from './routes/bills.js';
 import { calendarRoutes } from './routes/calendar.js';
 import { committeeRoutes } from './routes/committees.js';
@@ -37,7 +36,26 @@ export function buildServer() {
       return reply.code(400).send({ error: 'validation', issues: err.issues });
     }
     req.log.error(err);
-    return reply.code(err.statusCode ?? 500).send({ error: err.message ?? 'internal error' });
+    // Never reflect internal/DB error text on 5xx — only safe client errors (4xx)
+    // expose their message. Prevents leaking Postgres/connection internals.
+    const code = err.statusCode ?? 500;
+    return reply.code(code).send({ error: code >= 500 ? 'internal error' : (err.message ?? 'error') });
+  });
+
+  // Cache-Control for public GET data. The dataset is a slow-changing legislative
+  // snapshot (batch ingest), so the CDN/browser can serve repeat fetches without
+  // re-hitting Postgres. Skips /api/health and any non-200/non-GET response; routes
+  // may set their own Cache-Control first (this hook won't override it).
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (
+      req.method === 'GET' &&
+      reply.statusCode === 200 &&
+      !req.url.startsWith('/api/health') &&
+      !reply.hasHeader('cache-control')
+    ) {
+      reply.header('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
+    }
+    return payload;
   });
 
   app.get('/api/health', async (_req, reply) => {
@@ -45,8 +63,7 @@ export function buildServer() {
     return reply.code(dbOk ? 200 : 503).send({ ok: dbOk, db: dbOk, ts: new Date().toISOString() });
   });
 
-  // Public site (no access gate) — the data is public record and ads need open access.
-  app.register(accessRoutes);
+  // Public site — no access gate (the data is public record and ads need open access).
   app.register(legislatorRoutes);
   app.register(leadershipRoutes);
   app.register(billRoutes);

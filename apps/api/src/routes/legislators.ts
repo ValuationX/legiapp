@@ -1,11 +1,13 @@
 import { LegislatorQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { query } from '../db.js';
 import { stateOf } from '../state.js';
 
 const SUMMARY_COLS = `
   l.id, l.full_name AS "fullName", l.first_name AS "firstName", l.last_name AS "lastName",
-  l.party, l.chamber, l.district, l.photo_url AS "photoUrl", l.next_election_year AS "nextElectionYear",
+  l.party, l.chamber, l.district, l.district_label AS "districtLabel",
+  l.photo_url AS "photoUrl", l.next_election_year AS "nextElectionYear",
   l.active AS "inOffice", l.source, l.last_verified AS "lastVerified", l.conflict,
   COALESCE((SELECT json_agg(json_build_object('role', lr.role, 'chamber', lr.chamber) ORDER BY lr.role)
             FROM leadership_role lr WHERE lr.legislator_id = l.id), '[]') AS "leadershipRoles"`;
@@ -88,7 +90,7 @@ export async function legislatorRoutes(app: FastifyInstance) {
 
   app.get('/api/legislators/:id/votes', async (req) => {
     const { id } = req.params as { id: string };
-    const limit = Math.min(Number((req.query as { limit?: string }).limit ?? 60), 250);
+    const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(250).default(60) }).parse(req.query);
     return query(
       `SELECT vr.vote_event_id AS "voteEventId", ve.bill_id AS "billId", b.identifier AS "billIdentifier",
               b.title AS "billTitle", ve.date, vr.option, ve.result, ve.motion, ve.is_floor AS "isFloor"
@@ -104,7 +106,7 @@ export async function legislatorRoutes(app: FastifyInstance) {
 
   app.get('/api/legislators/:id/bills', async (req) => {
     const { id } = req.params as { id: string };
-    const limit = Math.min(Number((req.query as { limit?: string }).limit ?? 100), 300);
+    const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(300).default(100) }).parse(req.query);
     return query(
       `SELECT b.id, b.identifier, b.measure_type AS "measureType", b.measure_num AS "measureNum",
               b.title, b.status, b.chamber_of_origin AS "chamberOfOrigin", b.current_location AS "currentLocation",

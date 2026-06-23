@@ -2,7 +2,11 @@
 
 function cell(v: unknown): string {
   if (v === null || v === undefined) return '';
-  const s = String(v);
+  let s = String(v);
+  // Neutralize spreadsheet formula injection: a leading =,+,-,@ (or tab/CR) makes
+  // Excel/Sheets evaluate the cell as a formula. Exported values come from external
+  // ingest, so prefix those with a single quote before RFC-4180 quoting.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

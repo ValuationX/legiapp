@@ -13,7 +13,7 @@ import {
 import { Input, Select } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel, formatDate } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 
 export default function Bills() {
@@ -25,10 +25,11 @@ export default function Bills() {
   const [page, setPage] = React.useState(1);
   const pageSize = 25;
   const sl = useStateLabels();
+  const { state } = useStateCtx();
 
   React.useEffect(() => setPage(1), [chamber, measureType, status, subject, q]);
 
-  const facets = useQuery({ queryKey: ['bill-facets'], queryFn: api.billFacets });
+  const facets = useQuery({ queryKey: ['bill-facets', state], queryFn: api.billFacets });
 
   const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (chamber) qs.set('chamber', chamber);
@@ -38,7 +39,7 @@ export default function Bills() {
   if (q) qs.set('q', q);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['bills', qs.toString()],
+    queryKey: ['bills', state, qs.toString()],
     queryFn: () => api.bills(qs.toString()),
   });
 

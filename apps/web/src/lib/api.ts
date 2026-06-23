@@ -54,6 +54,7 @@ export interface LeadershipRow {
   fullName: string;
   party: string | null;
   district: number | null;
+  districtLabel: string | null;
   photoUrl: string | null;
   email: string | null;
   phone: string | null;

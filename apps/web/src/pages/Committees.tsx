@@ -6,19 +6,20 @@ import { ErrorState, PageHeader } from '@/components/common';
 import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 
 export default function Committees() {
   const [chamber, setChamber] = React.useState('');
   const [q, setQ] = React.useState('');
   const sl = useStateLabels();
+  const { state } = useStateCtx();
 
   const qs = new URLSearchParams();
   if (chamber) qs.set('chamber', chamber);
   if (q) qs.set('q', q);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['committees', qs.toString()],
+    queryKey: ['committees', state, qs.toString()],
     queryFn: () => api.committees(qs.toString()),
   });
 

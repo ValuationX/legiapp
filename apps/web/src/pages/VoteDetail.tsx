@@ -21,9 +21,12 @@ export default function VoteDetail() {
 
   return (
     <div>
-      <button onClick={() => history.back()} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        to={v ? `/bills/${v.billId}` : '/bills'}
+        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> Back
-      </button>
+      </Link>
 
       {isLoading || !v ? (
         <Skeleton className="h-40 w-full" />

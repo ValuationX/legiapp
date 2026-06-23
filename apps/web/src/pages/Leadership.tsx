@@ -6,12 +6,13 @@ import { Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api, type LeadershipRow } from '@/lib/api';
 import { useSettings } from '@/lib/settings';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 
 export default function Leadership() {
   const sl = useStateLabels();
+  const { state } = useStateCtx();
   const { showForeignAffairs } = useSettings();
-  const { data, isLoading, isError, error } = useQuery({ queryKey: ['leadership'], queryFn: api.leadership });
+  const { data, isLoading, isError, error } = useQuery({ queryKey: ['leadership', state], queryFn: api.leadership });
   if (isError) return <ErrorState error={error} />;
 
   const rows = data ?? [];
@@ -71,7 +72,7 @@ function Section({ title, rows, showFA }: { title: string; rows: LeadershipRow[]
                     </span>
                   ) : null}
                 </TD>
-                <TD className="text-sm tabular text-muted-foreground">{r.district ?? '—'}</TD>
+                <TD className="text-sm tabular text-muted-foreground">{r.districtLabel ?? r.district ?? '—'}</TD>
                 {showFA ? (
                   <TD>
                     {r.faBills.length === 0 ? (

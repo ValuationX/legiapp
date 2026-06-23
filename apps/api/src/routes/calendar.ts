@@ -28,8 +28,10 @@ export async function calendarRoutes(app: FastifyInstance) {
       where.push(`date >= $${params.length}`);
     }
     if (to) {
+      // Half-open upper bound so the inclusive `to` day captures all-day events
+      // (pinned to noon UTC) and any time-of-day on the boundary date.
       params.push(to);
-      where.push(`date <= $${params.length}`);
+      where.push(`date < ($${params.length}::date + interval '1 day')`);
     }
     params.push(limit);
     return query(

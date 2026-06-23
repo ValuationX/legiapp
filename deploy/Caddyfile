@@ -3,15 +3,32 @@
 # a hostname (e.g. legiapp.example.org) gets automatic HTTPS via Let's Encrypt;
 # ":80" serves plain HTTP for local / IP-only testing.
 #
-# Because the SPA and the API are served from the same origin here, the access
-# cookie is first-party and no CORS preflight is involved.
+# The SPA and the API are served from the same origin here, so requests are
+# first-party and no CORS preflight is involved.
 {$SITE_ADDRESS} {
 	encode zstd gzip
+
+	# Security headers on the document. (CSP is intentionally omitted — roll it out
+	# in Content-Security-Policy-Report-Only first, once the AdSense/Vercel/OSM-tile
+	# allowlist is validated, then enforce. HSTS is only emitted when serving HTTPS.)
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
 
 	# API → Fastify container.
 	handle /api/* {
 		reverse_proxy api:4000
 	}
+
+	# Hashed, content-addressed build assets — cache forever.
+	@assets path *.js *.css *.woff *.woff2 *.ttf *.otf *.svg *.png *.jpg *.jpeg *.gif *.webp *.ico
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# Never cache the SPA shell, so new chunk hashes are picked up after a deploy.
+	header /index.html Cache-Control "no-cache"
 
 	# Everything else is the single-page app; unknown paths fall back to
 	# index.html so client-side routing works on hard refresh / deep links.

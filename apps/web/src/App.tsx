@@ -1,32 +1,46 @@
+import { lazy, Suspense } from 'react';
 import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
-import About from '@/pages/About';
-import BillDetail from '@/pages/BillDetail';
-import Bills from '@/pages/Bills';
-import Calendar from '@/pages/Calendar';
-import CommitteeDetail from '@/pages/CommitteeDetail';
-import Committees from '@/pages/Committees';
-import Dashboard from '@/pages/Dashboard';
-import ForeignAffairs from '@/pages/ForeignAffairs';
-import Leadership from '@/pages/Leadership';
-import LegislatorDetail from '@/pages/LegislatorDetail';
-import Legislators from '@/pages/Legislators';
-import MapPage from '@/pages/Map';
-import NotFound from '@/pages/NotFound';
-import Privacy from '@/pages/Privacy';
-import Settings from '@/pages/Settings';
-import Terms from '@/pages/Terms';
-import VoteDetail from '@/pages/VoteDetail';
+import { Spinner } from '@/components/ui/primitives';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { StateProvider, useStateCtx } from '@/lib/state';
 
+// Pages are code-split: each becomes its own chunk loaded on demand, so the
+// initial bundle no longer carries every route (notably Map's leaflet + turf).
+const About = lazy(() => import('@/pages/About'));
+const BillDetail = lazy(() => import('@/pages/BillDetail'));
+const Bills = lazy(() => import('@/pages/Bills'));
+const Calendar = lazy(() => import('@/pages/Calendar'));
+const CommitteeDetail = lazy(() => import('@/pages/CommitteeDetail'));
+const Committees = lazy(() => import('@/pages/Committees'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const ForeignAffairs = lazy(() => import('@/pages/ForeignAffairs'));
+const Leadership = lazy(() => import('@/pages/Leadership'));
+const LegislatorDetail = lazy(() => import('@/pages/LegislatorDetail'));
+const Legislators = lazy(() => import('@/pages/Legislators'));
+const MapPage = lazy(() => import('@/pages/Map'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const Privacy = lazy(() => import('@/pages/Privacy'));
+const Settings = lazy(() => import('@/pages/Settings'));
+const Terms = lazy(() => import('@/pages/Terms'));
+const VoteDetail = lazy(() => import('@/pages/VoteDetail'));
+
+/** Centered fallback shown while a route chunk is being fetched. */
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <Spinner className="h-6 w-6 text-muted-foreground" />
+    </div>
+  );
+}
+
 /** Welcome / main intro page: a short intro to Bill Aid + the state picker.
  *  Shown on first visit (no state chosen) and reachable anytime via the logo (/welcome). */
-function StateLanding() {
+function StateLanding({ redirectTo = '/' }: { redirectTo?: string }) {
   const navigate = useNavigate();
   const { showForeignAffairs } = useSettings();
   const features = [
@@ -65,7 +79,7 @@ function StateLanding() {
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-sm">
           <p className="mb-4 text-center text-sm font-medium">Choose a state to begin</p>
-          <StatePicker onPick={() => navigate('/')} />
+          <StatePicker onPick={() => navigate(redirectTo)} />
         </div>
       </div>
     </div>
@@ -74,10 +88,40 @@ function StateLanding() {
 
 function Shell() {
   const { chosen } = useStateCtx();
-  if (!chosen) return <StateLanding />;
+  const location = useLocation();
+  // The must-accept notice shows on every screen (including the landing overview)
+  // EXCEPT the legal pages, so users can read Privacy/Terms before accepting.
+  const onLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
+
+  if (!chosen) {
+    // Legal pages stay reachable before a state is chosen (the disclaimer links to
+    // them) and render without the overlay so they can actually be read.
+    if (onLegalPage) {
+      return (
+        <div className="mx-auto min-h-screen px-4 py-8">
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+            </Routes>
+          </Suspense>
+        </div>
+      );
+    }
+    // Preserve a first-time deep link (/bills/123, shared /foreign-affairs?region=…):
+    // after a state is chosen, land on the originally-requested URL instead of '/'.
+    const dest = location.pathname === '/welcome' ? '/' : location.pathname + location.search;
+    return (
+      <>
+        <DisclaimerModal />
+        <StateLanding redirectTo={dest} />
+      </>
+    );
+  }
   return (
     <>
-      <DisclaimerModal />
+      {!onLegalPage && <DisclaimerModal />}
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/welcome" element={<StateLanding />} />
         <Route element={<Layout />}>
@@ -100,6 +144,7 @@ function Shell() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
+      </Suspense>
     </>
   );
 }

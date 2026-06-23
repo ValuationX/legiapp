@@ -4,10 +4,10 @@ import { CalendarDays, ExternalLink, Flag, Vote } from 'lucide-react';
 import * as React from 'react';
 import { EmptyState, ErrorState, PageHeader, SourceBadge } from '@/components/common';
 import { Badge, Card, CardContent, Select, Skeleton } from '@/components/ui/primitives';
-import { cn } from '@/lib/utils';
+import { cn, safeHref } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { calendarTypeMeta, formatCalendarDate, formatDayChip, monthKey } from '@/lib/format';
-import { useStateLabels } from '@/lib/state';
+import { useStateCtx, useStateLabels } from '@/lib/state';
 
 const TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'All event types' },
@@ -60,9 +60,9 @@ function EventRow({ e }: { e: CalendarEvent }) {
         </div>
         <p className="mt-1 text-sm font-medium leading-snug">{e.title}</p>
         {e.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{e.detail}</p> : null}
-        {e.sourceUrl ? (
+        {safeHref(e.sourceUrl) ? (
           <a
-            href={e.sourceUrl}
+            href={safeHref(e.sourceUrl)!}
             target="_blank"
             rel="noreferrer noopener"
             className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
@@ -97,6 +97,7 @@ export default function Calendar() {
   const [scope, setScope] = React.useState<'upcoming' | 'all'>('upcoming');
   const [deadlinesOnly, setDeadlinesOnly] = React.useState(false);
   const sl = useStateLabels();
+  const { state } = useStateCtx();
 
   const qs = new URLSearchParams();
   if (type) qs.set('type', type);
@@ -104,17 +105,28 @@ export default function Calendar() {
   if (deadlinesOnly) qs.set('deadline', 'true');
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['calendar', qs.toString()],
+    queryKey: ['calendar', state, qs.toString()],
     queryFn: () => api.calendar(qs.toString()),
   });
 
-  const events = data ?? [];
+  // Sort client-side so "next" highlights and month grouping never depend on the
+  // server's row order (Date-based, not string compare).
+  const events = React.useMemo(
+    () => [...(data ?? [])].sort((a, b) => +new Date(a.date) - +new Date(b.date)),
+    [data],
+  );
   const now = new Date();
-  // "Next election" = the next actual election *day* (Statewide Primary/General),
-  // not an election-related milestone (filing/registration deadline, ballot mailing,
-  // nomination window) that also carries type 'election'.
+  // "Next election" = the next actual election *day*, not an election-related
+  // milestone (filing/registration deadline, ballot mailing, nomination window,
+  // vote-by-mail start) that also carries type 'election' in CA's curated data.
+  // Type-based so it works for every state (CA tags milestones; others don't).
+  const ELECTION_MILESTONE = /regist|filing|nomination|vote.?by.?mail|\bvbm\b|ballot|deadline|last day/i;
   const nextElection = events.find(
-    (e) => e.type === 'election' && /statewide.*election$/i.test(e.title) && new Date(e.date) >= now,
+    (e) =>
+      e.type === 'election' &&
+      !e.deadlineFlag &&
+      !ELECTION_MILESTONE.test(`${e.title} ${e.detail ?? ''}`) &&
+      new Date(e.date) >= now,
   );
   const nextDeadline = events.find((e) => e.deadlineFlag && new Date(e.date) >= now);
 
@@ -127,13 +139,26 @@ export default function Calendar() {
     else groups.push({ key, items: [e] });
   }
 
-  // Header provenance is fixed (the feature's two authoritative origins), not a
-  // single filter-dependent row; per-event "Official source" links carry the
-  // exact row-level traceability.
+  // Header provenance is derived from the distinct source hostnames of the loaded
+  // events, so it stays correct for every state (per-event "Official source" links
+  // carry the exact row-level traceability).
   const latestVerified = events.reduce<string | null>(
     (max, e) => (e.lastVerified && (!max || e.lastVerified > max) ? e.lastVerified : max),
     null,
   );
+  const sourceLabel = React.useMemo(() => {
+    const hosts = new Set<string>();
+    for (const e of events) {
+      const href = safeHref(e.sourceUrl);
+      if (!href) continue;
+      try {
+        hosts.add(new URL(href).hostname.replace(/^www\./, ''));
+      } catch {
+        /* ignore unparseable */
+      }
+    }
+    return [...hosts].sort().join(' · ');
+  }, [events]);
 
   return (
     <div>
@@ -141,7 +166,7 @@ export default function Calendar() {
         title="Legislative Calendar"
         subtitle={`Key legislative deadlines and ${sl.name} statewide election milestones — your windows to influence a bill's fate.`}
       >
-        {events.length ? <SourceBadge source="senate.ca.gov · sos.ca.gov" lastVerified={latestVerified} /> : null}
+        {events.length && sourceLabel ? <SourceBadge source={sourceLabel} lastVerified={latestVerified} /> : null}
       </PageHeader>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-2">

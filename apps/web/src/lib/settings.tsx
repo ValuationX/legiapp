@@ -18,11 +18,22 @@ const DEFAULTS: Settings = { showForeignAffairs: true, theme: 'system' };
 function load(): Settings {
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    if (raw) return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (!raw) return DEFAULTS;
+    // Validate per-field so a corrupted/legacy stored value self-heals to the
+    // default for that field instead of violating the Settings type (e.g. a
+    // wedged theme that can't be cleared without wiping storage).
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      showForeignAffairs:
+        typeof parsed.showForeignAffairs === 'boolean' ? parsed.showForeignAffairs : DEFAULTS.showForeignAffairs,
+      theme:
+        parsed.theme === 'light' || parsed.theme === 'dark' || parsed.theme === 'system'
+          ? parsed.theme
+          : DEFAULTS.theme,
+    };
   } catch {
-    /* ignore */
+    return DEFAULTS;
   }
-  return DEFAULTS;
 }
 
 interface SettingsCtx extends Settings {
