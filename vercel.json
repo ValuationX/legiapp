@@ -6,6 +6,7 @@
   "functions": {
     "api/server.ts": { "maxDuration": 15 }
   },
+  "regions": ["iad1"],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/server" },
     { "source": "/(.*)", "destination": "/index.html" }

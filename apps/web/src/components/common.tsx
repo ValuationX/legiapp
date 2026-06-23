@@ -69,7 +69,10 @@ export function MemberAvatar({
         <img
           src={photoUrl}
           alt={name}
+          width={size}
+          height={size}
           loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover"
           onError={() => setBroken(true)}
         />
