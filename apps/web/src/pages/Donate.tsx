@@ -19,19 +19,11 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/common';
 import { Badge, Card, CardContent } from '@/components/ui/primitives';
+import { DONATE_URL, FUNDING_GOAL, KOFI_EMBED_URL } from '@/lib/donate';
 import { safeHref } from '@/lib/utils';
 
-// ── Ko-fi configuration ───────────────────────────────────────────────────────
-// Set KOFI_USERNAME to the project's Ko-fi handle (e.g. 'billaid'). While it's
-// empty, the page shows a graceful "coming soon" + goal-only state. The live goal
-// thermometer is Ko-fi's own embedded widget (Ko-fi has no public API), so it
-// auto-updates with the real numbers once the page exists.
-const KOFI_USERNAME = '';
-const FUNDING_GOAL = 200; // USD / month — the threshold that funds the free Advocacy API.
-const DONATE_URL = KOFI_USERNAME ? `https://ko-fi.com/${KOFI_USERNAME}` : '';
-const KOFI_EMBED_URL = KOFI_USERNAME
-  ? `https://ko-fi.com/${KOFI_USERNAME}/?hidefeed=true&widget=true&embed=true&preview=true`
-  : '';
+// Ko-fi config (KOFI_USERNAME, goal, URLs) lives in @/lib/donate — the single
+// place to set the Ko-fi handle and light up the button, embed, and banners.
 
 // What day-to-day donations keep running.
 const COVERS = [

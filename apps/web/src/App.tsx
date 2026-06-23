@@ -3,6 +3,7 @@ import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
+import { DonatePrompt } from '@/components/DonateCallout';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
@@ -137,6 +138,7 @@ function Shell() {
   return (
     <>
       {!onLegalPage && <DisclaimerModal />}
+      {!onLegalPage && <DonatePrompt />}
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/welcome" element={<StateLanding />} />

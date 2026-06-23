@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { CalendarClock, CalendarDays, FileText, Flag, Gavel, Users, Vote } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DonateBanner } from '@/components/DonateCallout';
 import { ErrorState, PageHeader, SourceBadge, StatusBadge } from '@/components/common';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
@@ -33,6 +34,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <DonateBanner />
       <PageHeader
         title="This Week"
         subtitle={`Upcoming hearings and recently moved bills across the ${sl.name} Legislature.`}
