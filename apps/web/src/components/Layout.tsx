@@ -5,6 +5,7 @@ import {
   Crown,
   FileText,
   Globe,
+  Heart,
   LayoutDashboard,
   Map,
   MapPin,
@@ -89,7 +90,11 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           ))}
         </nav>
 
-        <div className="border-t p-3">
+        <div className="space-y-1 border-t p-3">
+          <NavLink to="/donate" className={navLinkClass}>
+            <Heart className="h-4 w-4 shrink-0 text-primary" />
+            Donate
+          </NavLink>
           <NavLink to="/settings" className={navLinkClass}>
             <SettingsIcon className="h-4 w-4 shrink-0" />
             Settings
@@ -190,6 +195,9 @@ function Footer() {
           <span>© {year} Bill Aid — informational research aid; verify against the official record.</span>
         </div>
         <nav className="flex items-center gap-4">
+          <Link to="/donate" className="font-medium text-primary transition-colors hover:underline">
+            Donate
+          </Link>
           <Link to="/about" className="transition-colors hover:text-foreground">
             About
           </Link>

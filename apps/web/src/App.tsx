@@ -19,6 +19,7 @@ const Calendar = lazy(() => import('@/pages/Calendar'));
 const CommitteeDetail = lazy(() => import('@/pages/CommitteeDetail'));
 const Committees = lazy(() => import('@/pages/Committees'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Donate = lazy(() => import('@/pages/Donate'));
 const ForeignAffairs = lazy(() => import('@/pages/ForeignAffairs'));
 const Leadership = lazy(() => import('@/pages/Leadership'));
 const LegislatorDetail = lazy(() => import('@/pages/LegislatorDetail'));
@@ -149,6 +150,7 @@ function Shell() {
           <Route path="/committees" element={<Committees />} />
           <Route path="/committees/:id" element={<CommitteeDetail />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/donate" element={<Donate />} />
           <Route path="/foreign-affairs" element={<ForeignAffairs />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/votes/:id" element={<VoteDetail />} />
