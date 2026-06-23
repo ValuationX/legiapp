@@ -164,7 +164,7 @@ export default function Calendar() {
     <div>
       <PageHeader
         title="Legislative Calendar"
-        subtitle={`Key legislative deadlines and ${sl.name} statewide election milestones — your windows to influence a bill's fate.`}
+        subtitle={`The ${sl.name} legislative session schedule, bill deadlines, and statewide election milestones — your windows to influence a bill's fate.`}
       >
         {events.length && sourceLabel ? <SourceBadge source={sourceLabel} lastVerified={latestVerified} /> : null}
       </PageHeader>

@@ -1,4 +1,4 @@
-import { getState, type StateCode } from '@legiapp/shared';
+import { getState, type StateCode, type StateConfig } from '@legiapp/shared';
 import { connectClient } from '../db.js';
 import {
   CALENDAR,
@@ -6,6 +6,7 @@ import {
   FALLBACK_DEADLINES,
   SENATE_DEADLINES_URL,
   SENATE_ICS_URL,
+  SESSION_CALENDAR,
 } from './data.js';
 import { categorizeEvent, parseIcs } from './ics.js';
 
@@ -103,6 +104,41 @@ function curatedRows(st: StateCode): Row[] {
   }));
 }
 
+// ── Session days: merge each state's per-chamber session-day lists into one 'session'
+//    event per date, labelled with the chamber(s) meeting that day (using the state's
+//    display labels, e.g. "Assembly"/"House"/"Senate"). Deadline-poor states express
+//    their legislative schedule this way; deadline-rich states have none here.
+export function sessionDayRows(cfg: StateConfig): Row[] {
+  const sc = SESSION_CALENDAR[cfg.code];
+  if (!sc) return [];
+  const seen = new Map<string, { lower: boolean; upper: boolean }>();
+  const mark = (date: string, key: 'lower' | 'upper') => {
+    const cur = seen.get(date) ?? { lower: false, upper: false };
+    cur[key] = true;
+    seen.set(date, cur);
+  };
+  for (const d of sc.lower ?? []) mark(d, 'lower');
+  for (const d of sc.upper ?? []) mark(d, 'upper');
+  const rows: Row[] = [];
+  for (const [date, ch] of seen) {
+    const label =
+      ch.lower && ch.upper ? `${cfg.lowerLabel} & ${cfg.upperLabel}` : ch.lower ? cfg.lowerLabel : cfg.upperLabel;
+    const sourceUrl =
+      ch.lower && ch.upper ? sc.sourceUrl : ch.lower ? (sc.sourceLower ?? sc.sourceUrl) : (sc.sourceUpper ?? sc.sourceUrl);
+    rows.push({
+      externalId: `${cfg.code}:session:${date}`,
+      date: allDay(date),
+      type: 'session',
+      title: `${label} in session`,
+      detail: `Scheduled ${label} session day.`,
+      deadlineFlag: false,
+      sourceUrl,
+      source: `${cfg.code.toLowerCase()}-session`,
+    });
+  }
+  return rows;
+}
+
 export async function runCalendar(stateRaw = 'CA'): Promise<{ events: number; liveIcs: boolean }> {
   const cfg = getState(stateRaw);
   if (!cfg) throw new Error(`unknown state: ${stateRaw}`);
@@ -122,7 +158,7 @@ export async function runCalendar(stateRaw = 'CA'): Promise<{ events: number; li
       if (!liveIcs) legislative = fallbackDeadlines();
       rows = [...legislative, ...californiaElections()];
     } else {
-      rows = curatedRows(st);
+      rows = [...curatedRows(st), ...sessionDayRows(cfg)];
     }
 
     if (rows.length) {
