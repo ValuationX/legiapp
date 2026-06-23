@@ -24,16 +24,17 @@ and the lawmakers behind it. State legislatures only (no U.S. Congress).
 
 ## Data loaded (in Neon, live)
 
-**8 states fully featured:** CA, NY, OH, MI, HI, IA, PA, MA — each has legislators, bills,
-foreign-affairs tags, roll-call votes, committees (rosters + chairs), district maps,
-chamber leadership, and a 2026 calendar (elections + session dates).
+**All 10 states live:** CA, NY, OH, MI, HI, IA, PA, MA, IL, AZ — each has legislators, bills,
+foreign-affairs tags, committees (rosters + chairs), district maps, chamber leadership, and a
+2026 calendar. CA/NY/OH/MI/HI/IA/PA/MA also have roll-call votes.
 
-- **MA** map is partial (Massachusetts uses *named* districts, e.g. "3rd Middlesex" — the
-  numeric TIGER match only links some; all other MA data is complete).
-- **CA** is the deepest (official PUBINFO source incl. its own votes); the other 7 come
-  from Open States bulk CSVs + Census TIGER + curated leadership/calendar.
-
-**Not loaded yet: IL + AZ** — see Pending below.
+- **CA** is the deepest (official PUBINFO source incl. its own votes); NY/OH/MI/HI/IA/PA/MA
+  come from Open States bulk CSVs + Census TIGER + curated leadership/calendar.
+- **IL + AZ** were loaded via the Open States **v3 API** (no bulk CSV exists for their recent
+  sessions). Caveats: **no roll-call votes** (votes come from the bulk CSVs they lack); **AZ
+  bills are FA-complete but recent non-FA is slightly truncated** (a late connection drop);
+  **AZ map is multi-member** (one rep linked per district).
+- **MA** map is partial (named districts, e.g. "3rd Middlesex"); all other MA data is complete.
 
 ## Architecture (TypeScript monorepo, npm workspaces)
 
@@ -96,17 +97,13 @@ the exact per-state commands. All sources are free; no paid APIs.
 
 ## Pending / next steps
 
-1. **Load IL + AZ (the one unfinished feature).** Data isn't in the Open States *bulk CSV*
-   exports for recent IL (only 100th GA) / AZ, but Open States **does** track them — load via
-   the **v3 API** path (`OPENSTATES_API_KEY=… npm run ingest -- state IL`). The curated IL/AZ
-   leadership + calendar are already in the repo (`leadership/data.ts`, `calendar/data.ts`).
-   **Blocker:** the slow, rate-limited API import holds one Neon connection open and Neon
-   drops it mid-run ("Connection terminated unexpectedly"); TCP keepAlive did not fix it.
-   **Fix:** refactor `runStateImport` to *collect all API data first, then open the DB
-   connection and write* (so the connection isn't idle during fetches) — or run the import
-   against a local Postgres and publish the IL/AZ rows to Neon. Then run `votes`/`districts`
-   (note AZ House is multi-member → map shows one rep/district), `leadership IL`, `leadership AZ`,
-   `calendar IL`, `calendar AZ`, and verify with `scripts/verify-state.mjs`.
+1. **IL + AZ polish (loaded, not fully clean).** Both are live via the Open States v3 API.
+   Remaining: AZ's recent non-FA bills are slightly truncated (a late Neon connection drop mid-
+   import), and IL/AZ have no roll-call votes (their source lacks them via this path). The robust
+   fix: refactor the API path in `runStateImport` to **collect all bills via the API first, then
+   open the DB connection and write** — so Neon never drops an idle connection; re-running
+   `state IL`/`state AZ` then gives a fully clean load. (keepAlive + a pg `error` handler were
+   added as stopgaps and got both states in.)
 2. **Rotate secrets** — the Neon password and Open States key were pasted in chat; rotate both
    and update Vercel env.
 3. **MA district map** — named districts; revisit if a full MA map is wanted.
