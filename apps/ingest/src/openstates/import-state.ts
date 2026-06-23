@@ -19,6 +19,7 @@ import { FA_REGIONS, getState, type StateConfig } from '@legiapp/shared';
 import { connectClient } from '../db.js';
 import { paginate } from './client.js';
 import { importBillsFromCsv } from './import-csv.js';
+import { batchInsert, mapOption } from './import-votes.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -182,11 +183,15 @@ async function upsertBill(
   return id;
 }
 
-async function importBills(client: pg.Client | null, st: StateConfig, sessionYear: string, rosterPids: Set<string>) {
+type CollectedBill = { b: any; region: string | null };
+
+/** Fetch FA + recent bills from the Open States API with NO DB connection held. The API is
+ *  slow and rate-limited; collecting first (then writing) keeps Neon from dropping an idle
+ *  connection mid-import — the failure mode that truncated sparse-FA states like AZ. */
+async function collectBills(st: StateConfig): Promise<CollectedBill[]> {
   const seen = new Set<string>();
-  let fa = 0;
-  let recent = 0;
-  const params = { jurisdiction: st.openStatesJurisdiction, include: ['sponsorships', 'abstracts'], per_page: 20 }; // OS v3 /bills caps per_page at 20
+  const out: CollectedBill[] = [];
+  const params = { jurisdiction: st.openStatesJurisdiction, include: ['sponsorships', 'abstracts', 'votes'], per_page: 20 }; // OS v3 /bills caps per_page at 20; votes carry roll calls
 
   // 1) Foreign-affairs bills, all sessions >= 2022, via targeted searches
   for (const region of FA_REGIONS) {
@@ -196,8 +201,7 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
         const id = billId(st, b.session, b.identifier ?? '');
         if (seen.has(id)) continue;
         seen.add(id);
-        await upsertBill(client, st, b, region.key, sessionYear, rosterPids);
-        fa++;
+        out.push({ b, region: region.key });
       }
     }
   }
@@ -209,10 +213,92 @@ async function importBills(client: pg.Client | null, st: StateConfig, sessionYea
     const id = billId(st, b.session ?? '', b.identifier ?? '');
     if (seen.has(id)) continue;
     seen.add(id);
-    await upsertBill(client, st, b, null, sessionYear, rosterPids);
-    recent++;
+    out.push({ b, region: null });
   }
-  return { fa, recent, total: seen.size };
+  return out;
+}
+
+/** Write pre-collected bills (fast, tight DB loop — no idle gaps). */
+async function writeBills(
+  client: pg.Client | null,
+  st: StateConfig,
+  collected: CollectedBill[],
+  sessionYear: string,
+  rosterPids: Set<string>,
+) {
+  let fa = 0;
+  let recent = 0;
+  for (const { b, region } of collected) {
+    await upsertBill(client, st, b, region, sessionYear, rosterPids);
+    if (region) fa++;
+    else recent++;
+  }
+  return { fa, recent, total: collected.length };
+}
+
+/** Write roll-call votes the API returned inline on the collected bills (via include=votes).
+ *  IL/AZ have no bulk-CSV votes, so this is their only vote source. Voters link to the roster
+ *  by Open States person id (the `:os:<pid>` suffix); unmatched voters are kept by name.
+ *  Replaces the state's votes so re-runs don't duplicate. */
+async function writeVotesFromCollected(
+  client: pg.Client,
+  st: StateConfig,
+  collected: CollectedBill[],
+  legByPid: Map<string, string>,
+) {
+  const events: any[][] = [];
+  const records: any[][] = [];
+  const recKeys = new Set<string>();
+  const seenEvents = new Set<string>();
+  for (const { b } of collected) {
+    const bid = billId(st, b.session ?? '', b.identifier ?? '');
+    for (const v of (b.votes ?? []) as any[]) {
+      const vid = `${st.code}:${ocdShort(v.id)}`;
+      if (seenEvents.has(vid)) continue;
+      seenEvents.add(vid);
+      let ayes = 0;
+      let noes = 0;
+      let abstain = 0;
+      for (const c of (v.counts ?? []) as any[]) {
+        const o = mapOption(c.option);
+        const n = Number.parseInt(c.value, 10) || 0;
+        if (o === 'yea') ayes += n;
+        else if (o === 'nay') noes += n;
+        else abstain += n;
+      }
+      const motion = v.motion_text || null;
+      const cls = Array.isArray(v.motion_classification) ? v.motion_classification.join(' ') : '';
+      const isFloor = /passage|reading|floor|third|concur/i.test(`${cls} ${motion ?? ''}`);
+      events.push([vid, st.code, bid, v.start_date || null, chamberOf(v.organization?.classification), isFloor, motion, v.result || null, ayes, noes, abstain]);
+      for (const pv of (v.votes ?? []) as any[]) {
+        const name = pv.voter_name || pv.voter?.name || '?';
+        const key = `${vid}|${name.toLowerCase()}`;
+        if (recKeys.has(key)) continue;
+        recKeys.add(key);
+        const pid = ocdShort(pv.voter_id ?? pv.voter?.id);
+        records.push([vid, (pid && legByPid.get(pid)) || null, name, mapOption(pv.option)]);
+      }
+    }
+  }
+  if (!events.length) return { events: 0, records: 0 };
+  await client.query('DELETE FROM vote_event WHERE state=$1', [st.code]); // cascades vote_record
+  const ne = await batchInsert(
+    client,
+    `INSERT INTO vote_event (id, state, bill_id, date, chamber, is_floor, motion, result, ayes, noes, abstain, source) VALUES`,
+    `ON CONFLICT (id) DO NOTHING`,
+    11,
+    (o) => `($${o + 1},$${o + 2},$${o + 3},$${o + 4},$${o + 5}::chamber,$${o + 6},$${o + 7},$${o + 8},$${o + 9},$${o + 10},$${o + 11},'openstates')`,
+    events,
+  );
+  const nr = await batchInsert(
+    client,
+    `INSERT INTO vote_record (vote_event_id, legislator_id, legislator_name, option) VALUES`,
+    `ON CONFLICT (vote_event_id, legislator_name) DO NOTHING`,
+    4,
+    (o) => `($${o + 1},$${o + 2},$${o + 3},$${o + 4}::vote_option)`,
+    records,
+  );
+  return { events: ne, records: nr };
 }
 
 // ── Committees + memberships (rosters + chairs) from the People repo ───────────
@@ -278,12 +364,18 @@ export async function runStateImport(code: string): Promise<void> {
   const sessionYear = '2025-2026'; // current session for the source-fed states
 
   console.log(`${DRY ? '[DRY RUN] ' : ''}Importing ${st.name} (${st.code})…`);
+
+  // Collect bills from the slow, rate-limited API BEFORE opening the DB connection (API path
+  // only) — a long fetch can no longer leave the Neon connection idle long enough to be
+  // dropped, the failure that truncated sparse-FA states like AZ. The CSV path is fast and
+  // stays inline below.
+  const collected = !skipBills && !csvDirs.length ? await collectBills(st) : null;
+  if (collected) console.log(`  collected ${collected.length} bills via the Open States API`);
+
   const client = DRY ? null : await connectClient();
-  // The slow, rate-limited API path can leave the connection idle long enough that Neon
-  // drops it (esp. states with sparse FA results, where few writes happen between fetches).
-  // Ping every 20s to keep it warm, and handle 'error' so a transient drop doesn't crash.
+  // Only fast writes + quick People-repo fetches run while connected now; keep the 'error'
+  // handler so any transient drop is logged rather than crashing the process.
   client?.on('error', (e) => console.warn(`  pg client error: ${(e as Error).message}`));
-  const keepalive = client ? setInterval(() => void client.query('SELECT 1').catch(() => {}), 20_000) : null;
   try {
     let rosterPids = new Set<string>();
     if (process.env.SKIP_LEGS !== '1') {
@@ -308,16 +400,27 @@ export async function runStateImport(code: string): Promise<void> {
       }
       const bills = csvDirs.length
         ? await importBillsFromCsv(client, st, csvDirs, !DRY, sessionYear, rosterPids)
-        : await importBills(client, st, sessionYear, rosterPids);
+        : await writeBills(client, st, collected ?? [], sessionYear, rosterPids);
       console.log(`  bills: ${bills.total}  (foreign-affairs ${bills.fa} + recent ${bills.recent})`);
     }
 
     const cmt = await importCommittees(client, st, sessionYear, rosterPids);
     console.log(`  committees: ${cmt.committees}  (memberships ${cmt.memberships})`);
 
+    // Roll-call votes (API path only): CA gets votes from PUBINFO and the CSV states from
+    // `votes <STATE>`, so only the API-fed states (IL/AZ) need this inline-votes write.
+    if (!DRY && client && collected && !csvDirs.length) {
+      const legByPid = new Map<string, string>();
+      for (const r of (await client.query('SELECT id FROM legislator WHERE state=$1', [st.code])).rows as any[]) {
+        const pid = /:os:(.+)$/.exec(r.id)?.[1];
+        if (pid) legByPid.set(pid, r.id);
+      }
+      const votes = await writeVotesFromCollected(client, st, collected, legByPid);
+      console.log(`  votes: ${votes.events} events  (${votes.records} records)`);
+    }
+
     console.log(DRY ? '[DRY RUN] no writes — set IMPORT_APPLY=1 to load.' : `✓ ${st.code} imported.`);
   } finally {
-    if (keepalive) clearInterval(keepalive);
     if (client) await client.end();
   }
 }
