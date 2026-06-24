@@ -56,7 +56,21 @@ export default function LegislatorDetail() {
                         </span>
                       </div>
                       {!l.inOffice ? (
-                        <Badge className="mt-1.5 bg-rep-soft text-rep-fg ring-1 ring-rep/25">Former member</Badge>
+                        l.currentId && l.currentId !== id ? (
+                          <div className="mt-1.5">
+                            <Badge className="bg-secondary text-secondary-foreground ring-1 ring-border">
+                              Past term
+                            </Badge>
+                            <Link
+                              to={`/legislators/${l.currentId}`}
+                              className="mt-1 block text-xs font-medium text-primary hover:underline"
+                            >
+                              Currently serving — view current profile →
+                            </Link>
+                          </div>
+                        ) : (
+                          <Badge className="mt-1.5 bg-rep-soft text-rep-fg ring-1 ring-rep/25">Former member</Badge>
+                        )
                       ) : l.nextElectionYear ? (
                         <div className="mt-1 text-xs text-muted-foreground">
                           Next election:{' '}
@@ -96,6 +110,14 @@ export default function LegislatorDetail() {
                           The Capitol office reaches the member's staff (chief of staff, scheduler, legislative director).
                         </p>
                       ) : null}
+                    </div>
+                  ) : l.currentId && l.currentId !== id ? (
+                    <div className="mt-4 rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+                      You're viewing a past term.{' '}
+                      <Link to={`/legislators/${l.currentId}`} className="font-medium text-primary hover:underline">
+                        View the current profile
+                      </Link>{' '}
+                      for contact details.
                     </div>
                   ) : (
                     <div className="mt-4 rounded-md border border-rep/30 bg-rep-soft/40 px-3 py-2 text-sm text-rep-fg">

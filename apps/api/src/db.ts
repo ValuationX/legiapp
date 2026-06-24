@@ -27,6 +27,25 @@ export async function query<T = Record<string, unknown>>(
   });
 }
 
+/**
+ * A `LEFT JOIN LATERAL` that, given a (possibly old-session) legislator row aliased
+ * `lAlias`, finds that same person's CURRENT active record — by source_person_id when
+ * present, else by state + chamber + first/last name (never district: redistricting).
+ * Use `<outAlias>.id` (COALESCE with the historical id) so reference links point at
+ * the person's live profile when they still serve. Aliases are code constants — safe.
+ */
+export const currentLegislatorLateral = (lAlias = 'l', outAlias = 'curlnk'): string => `
+  LEFT JOIN LATERAL (
+    SELECT cur.id FROM legislator cur
+    WHERE cur.active = true AND cur.state = ${lAlias}.state
+      AND ( (${lAlias}.source_person_id IS NOT NULL AND cur.source_person_id = ${lAlias}.source_person_id)
+         OR (${lAlias}.source_person_id IS NULL AND cur.source_person_id IS NULL
+             AND cur.chamber = ${lAlias}.chamber
+             AND lower(cur.last_name) = lower(${lAlias}.last_name)
+             AND lower(coalesce(cur.first_name, '')) = lower(coalesce(${lAlias}.first_name, ''))) )
+    ORDER BY cur.session_year DESC LIMIT 1
+  ) ${outAlias} ON true`;
+
 /** Liveness ping for /api/health. */
 export async function ping(): Promise<boolean> {
   try {

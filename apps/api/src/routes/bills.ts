@@ -1,6 +1,6 @@
 import { BILL_STATUS_BUCKETS, BillQuery, billStatusBucket } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
-import { query } from '../db.js';
+import { currentLegislatorLateral, query } from '../db.js';
 import { stateOf } from '../state.js';
 
 const SUMMARY_COLS = `
@@ -110,10 +110,11 @@ export async function billRoutes(app: FastifyInstance) {
                                                           'description', a.description, 'chamber', a.chamber)
                                         ORDER BY a.action_sequence DESC NULLS LAST)
                         FROM bill_action a WHERE a.bill_id = b.id), '[]') AS actions,
-              COALESCE((SELECT json_agg(json_build_object('legislatorId', sp.legislator_id, 'legislatorName', sp.legislator_name,
+              COALESCE((SELECT json_agg(json_build_object('legislatorId', COALESCE(curlnk.id, sp.legislator_id), 'legislatorName', sp.legislator_name,
                                                           'type', sp.type, 'party', l.party, 'chamber', l.chamber)
                                         ORDER BY sp.type, sp.legislator_name)
                         FROM sponsorship sp LEFT JOIN legislator l ON l.id = sp.legislator_id
+                        ${currentLegislatorLateral()}
                         WHERE sp.bill_id = b.id), '[]') AS sponsors,
               COALESCE((SELECT json_agg(json_build_object('id', ve.id, 'date', ve.date, 'chamber', ve.chamber,
                                                           'locationName', ve.location_name, 'committeeId', ve.committee_id,

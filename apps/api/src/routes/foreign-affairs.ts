@@ -7,7 +7,7 @@ import {
   type FaSponsor,
 } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
-import { query } from '../db.js';
+import { currentLegislatorLateral, query } from '../db.js';
 import { stateOf } from '../state.js';
 
 interface BillRow {
@@ -74,13 +74,14 @@ export async function foreignAffairsRoutes(app: FastifyInstance) {
               left(coalesce(b.digest, b.summary, ''), 320) AS "digestSnippet",
               COALESCE((
                 SELECT json_agg(json_build_object(
-                         'legislatorId', sp.legislator_id, 'name', sp.legislator_name,
+                         'legislatorId', COALESCE(curlnk.id, sp.legislator_id), 'name', sp.legislator_name,
                          'party', l.party, 'chamber', l.chamber, 'type', sp.type,
                          'currentlyInOffice', EXISTS (
                             SELECT 1 FROM legislator cur WHERE cur.active = true
                             AND lower(cur.last_name) = lower(coalesce(l.last_name, split_part(sp.legislator_name, ' ', -1)))))
                        ORDER BY sp.type, sp.legislator_name)
                 FROM sponsorship sp LEFT JOIN legislator l ON l.id = sp.legislator_id
+                ${currentLegislatorLateral()}
                 WHERE sp.bill_id = b.id), '[]') AS sponsors,
               v.ayes, v.noes
        FROM fa JOIN bill b ON b.id = fa.bill_id

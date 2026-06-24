@@ -82,6 +82,9 @@ export const LegislatorDetail = LegislatorSummary.extend({
   committees: z.array(CommitteeAssignment).default([]),
   positions: z.array(MemberPosition).default([]),
   sponsoredCount: z.number().int().default(0),
+  // The same person's CURRENT active record id (===id when this record is current;
+  // null when they no longer serve). Lets the UI link a stale term to the live profile.
+  currentId: z.string().nullable().default(null),
 });
 export type LegislatorDetail = z.infer<typeof LegislatorDetail>;
 

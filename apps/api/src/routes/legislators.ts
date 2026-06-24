@@ -1,7 +1,7 @@
 import { LegislatorQuery } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { query } from '../db.js';
+import { currentLegislatorLateral, query } from '../db.js';
 import { stateOf } from '../state.js';
 
 const SUMMARY_COLS = `
@@ -80,8 +80,9 @@ export async function legislatorRoutes(app: FastifyInstance) {
                                                           'sourceUrl', mp.source_url) ORDER BY mp.topic)
                         FROM member_position mp LEFT JOIN bill b ON b.id = mp.bill_id
                         WHERE mp.legislator_id = l.id), '[]') AS positions,
-              (SELECT count(*)::int FROM sponsorship s WHERE s.legislator_id = l.id) AS "sponsoredCount"
-       FROM legislator l WHERE l.id = $1`,
+              (SELECT count(*)::int FROM sponsorship s WHERE s.legislator_id = l.id) AS "sponsoredCount",
+              curlnk.id AS "currentId"
+       FROM legislator l ${currentLegislatorLateral()} WHERE l.id = $1`,
       [id],
     );
     if (!rows.length) return reply.code(404).send({ error: 'Legislator not found' });
