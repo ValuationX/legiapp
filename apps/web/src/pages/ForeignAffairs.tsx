@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import type { FaSponsor, ForeignAffairsBill } from '@legiapp/shared';
-import { Download, Flag, Globe, Mail, Trophy, UserX } from 'lucide-react';
+import { ChevronDown, Download, Flag, Globe, Mail, Trophy, UserX } from 'lucide-react';
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '@/components/common';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@/components/ui/primitives';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { downloadCsv, toCsv } from '@/lib/csv';
 import { alignmentMeta, formatDate, partyMeta } from '@/lib/format';
@@ -126,13 +126,25 @@ export default function ForeignAffairs() {
   });
 
   const [leaderSort, setLeaderSort] = React.useState<'activity' | 'party'>('activity');
+  const [leaderOpen, setLeaderOpen] = React.useState(false);
   const [chamber, setChamber] = React.useState<'' | 'assembly' | 'senate'>('');
   const [leaderQuery, setLeaderQuery] = React.useState('');
+  const [billQuery, setBillQuery] = React.useState('');
+  const [billSort, setBillSort] = React.useState<'recent' | 'coauthors' | 'signed'>('recent');
 
-  const visibleBills = React.useMemo(
-    () => (data?.bills ?? []).filter((b) => !chamber || b.chamberOfOrigin === chamber),
-    [data?.bills, chamber],
-  );
+  const visibleBills = React.useMemo(() => {
+    let arr = (data?.bills ?? []).filter((b) => !chamber || b.chamberOfOrigin === chamber);
+    const ql = billQuery.trim().toLowerCase();
+    if (ql) {
+      arr = arr.filter((b) => b.identifier.toLowerCase().includes(ql) || (b.title ?? '').toLowerCase().includes(ql));
+    }
+    const recency = (b: ForeignAffairsBill) => (b.lastActionDate ? Date.parse(b.lastActionDate) : 0);
+    return [...arr].sort((a, b) => {
+      if (billSort === 'coauthors') return b.coauthors.length - a.coauthors.length || recency(b) - recency(a);
+      if (billSort === 'signed') return Number(b.signed) - Number(a.signed) || recency(b) - recency(a);
+      return recency(b) - recency(a);
+    });
+  }, [data?.bills, chamber, billQuery, billSort]);
 
   const leaders = React.useMemo(() => {
     let arr = data?.leaders ? [...data.leaders] : [];
@@ -267,15 +279,36 @@ export default function ForeignAffairs() {
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
           {/* Bills */}
           <div className="order-2 space-y-3 lg:order-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={billQuery}
+                onChange={(e) => setBillQuery(e.target.value)}
+                placeholder="Search bills by number or title…"
+                className="max-w-xs"
+                aria-label="Search foreign-affairs bills"
+              />
+              <Select
+                value={billSort}
+                onChange={(e) => setBillSort(e.target.value as 'recent' | 'coauthors' | 'signed')}
+                title="Sort bills"
+                className="sm:ml-auto"
+              >
+                <option value="recent">Sort: Recent</option>
+                <option value="coauthors">Sort: Most coauthors</option>
+                <option value="signed">Sort: Signed first</option>
+              </Select>
+            </div>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
             ) : !visibleBills.length ? (
               <EmptyState
                 title="No measures found"
                 hint={
-                  chamber
-                    ? `No ${chamber === 'senate' ? sl.upperLabel : sl.lowerLabel} measures for the current filters.`
-                    : 'Run `npm run ingest -- foreign-affairs` (and the historical PUBINFO sessions) to populate the tracker.'
+                  billQuery.trim()
+                    ? `No measures match “${billQuery.trim()}”.`
+                    : chamber
+                      ? `No ${chamber === 'senate' ? sl.upperLabel : sl.lowerLabel} measures for the current filters.`
+                      : 'Run `npm run ingest -- foreign-affairs` (and the historical PUBINFO sessions) to populate the tracker.'
                 }
               />
             ) : (
@@ -287,46 +320,66 @@ export default function ForeignAffairs() {
           <div className="order-1 space-y-4 lg:order-2">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLeaderOpen((v) => !v)}
+                  aria-expanded={leaderOpen}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
                   <CardTitle className="flex items-center gap-2">
                     <Trophy className="h-4 w-4" /> Most active legislators
+                    <span className="text-xs font-normal text-muted-foreground">({data?.leaders?.length ?? 0})</span>
                   </CardTitle>
-                  <div className="inline-flex rounded-md border bg-card p-0.5 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setLeaderSort('activity')}
-                      className={cn(
-                        'rounded px-2 py-0.5 font-medium transition-colors',
-                        leaderSort === 'activity'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      Activity
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLeaderSort('party')}
-                      className={cn(
-                        'rounded px-2 py-0.5 font-medium transition-colors',
-                        leaderSort === 'party'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      Party
-                    </button>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                      leaderOpen && 'rotate-180',
+                    )}
+                    aria-hidden
+                  />
+                </button>
+                {leaderOpen ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-end">
+                      <div className="inline-flex rounded-md border bg-card p-0.5 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setLeaderSort('activity')}
+                          className={cn(
+                            'rounded px-2 py-0.5 font-medium transition-colors',
+                            leaderSort === 'activity'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          Activity
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLeaderSort('party')}
+                          className={cn(
+                            'rounded px-2 py-0.5 font-medium transition-colors',
+                            leaderSort === 'party'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          Party
+                        </button>
+                      </div>
+                    </div>
+                    <Input
+                      value={leaderQuery}
+                      onChange={(e) => setLeaderQuery(e.target.value)}
+                      placeholder="Search legislators by name…"
+                      className="h-8 text-sm"
+                      aria-label="Search legislators"
+                    />
                   </div>
-                </div>
-                <Input
-                  value={leaderQuery}
-                  onChange={(e) => setLeaderQuery(e.target.value)}
-                  placeholder="Search legislators by name…"
-                  className="mt-2 h-8 text-sm"
-                  aria-label="Search legislators"
-                />
+                ) : null}
               </CardHeader>
-              <CardContent className="space-y-0.5">
+              {leaderOpen ? (
+              <CardContent className="max-h-[60vh] space-y-0.5 overflow-y-auto">
                 {isLoading ? (
                   <Skeleton className="h-40 w-full" />
                 ) : !leaders.length ? (
@@ -376,6 +429,7 @@ export default function ForeignAffairs() {
                   })
                 )}
               </CardContent>
+              ) : null}
             </Card>
             <p className="px-1 text-xs leading-relaxed text-muted-foreground">
               <Globe className="mr-1 inline h-3 w-3" aria-hidden />
