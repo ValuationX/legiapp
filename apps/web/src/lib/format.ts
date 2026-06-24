@@ -1,4 +1,4 @@
-import { type Chamber, type VoteOption, getState } from '@legiapp/shared';
+import { BILL_STATUS_BUCKET_LABELS, type Chamber, type VoteOption, billStatusBucket, getState } from '@legiapp/shared';
 import { getStateCode } from '@/lib/api';
 
 export interface PartyMeta {
@@ -171,9 +171,17 @@ export function initials(name: string): string {
     .join('');
 }
 
-export function statusTone(status: string | null | undefined): string {
-  const s = (status ?? '').toLowerCase();
-  if (s.includes('chaptered') || s.includes('passed')) return 'bg-yea/10 text-yea ring-1 ring-yea/20';
-  if (s.includes('vetoed') || s.includes('died') || s.includes('failed')) return 'bg-rep-soft text-rep-fg ring-1 ring-rep/20';
-  return 'bg-secondary text-secondary-foreground ring-1 ring-border';
+/** A bill status mapped to a friendly bucket label + a badge tone (Tailwind classes).
+ *  For the catch-all 'other' bucket we keep the raw status text so unusual-but-real
+ *  values still read sensibly. */
+export function statusMeta(status: string | null | undefined): { label: string; tone: string } {
+  const bucket = billStatusBucket(status);
+  const label = bucket === 'other' ? (status ?? '—') : BILL_STATUS_BUCKET_LABELS[bucket];
+  const tone =
+    bucket === 'signed' || bucket === 'passed_chamber'
+      ? 'bg-yea/10 text-yea ring-1 ring-yea/20'
+      : bucket === 'vetoed' || bucket === 'failed'
+        ? 'bg-rep-soft text-rep-fg ring-1 ring-rep/20'
+        : 'bg-secondary text-secondary-foreground ring-1 ring-border';
+  return { label, tone };
 }

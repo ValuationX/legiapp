@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { Badge, Button, Skeleton } from '@/components/ui/primitives';
 import { TD, TR } from '@/components/ui/table';
-import { chamberLabel, formatRelative, initials, partyMeta, statusTone } from '@/lib/format';
+import { chamberLabel, formatRelative, initials, partyMeta, statusMeta } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export function PartyBadge({ party }: { party: string | null | undefined }) {
@@ -18,7 +18,8 @@ export function PartyBadge({ party }: { party: string | null | undefined }) {
 
 export function StatusBadge({ status }: { status: string | null | undefined }) {
   if (!status) return <span className="text-xs text-muted-foreground">—</span>;
-  return <Badge className={statusTone(status)}>{status}</Badge>;
+  const { label, tone } = statusMeta(status);
+  return <Badge className={tone}>{label}</Badge>;
 }
 
 /** Source + freshness badge — the spec's traceability contract, on every record. */

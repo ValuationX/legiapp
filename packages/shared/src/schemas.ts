@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BILL_STATUS_BUCKETS } from './billStatus.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Primitives / enums
@@ -344,6 +345,9 @@ export const BillQuery = z.object({
   chamber: Chamber.optional(),
   measureType: z.string().optional(),
   status: z.string().optional(),
+  // Friendly status bucket (Introduced / In committee / …) — the API expands it to the
+  // matching raw status strings for the active state. Coexists with the raw `status`.
+  canonicalStatus: z.enum(BILL_STATUS_BUCKETS).optional(),
   subject: z.string().optional(),
   sponsor: z.string().optional(),
   // Session filter: omitted = current session only; "all" = every session; or an 8-digit session_year.

@@ -63,6 +63,7 @@ export interface LeadershipRow {
 }
 export interface BillFacets {
   statuses: string[];
+  statusBuckets: string[];
   measureTypes: string[];
   subjects: string[];
 }

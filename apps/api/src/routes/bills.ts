@@ -1,4 +1,4 @@
-import { BillQuery } from '@legiapp/shared';
+import { BILL_STATUS_BUCKETS, BillQuery, billStatusBucket } from '@legiapp/shared';
 import type { FastifyInstance } from 'fastify';
 import { query } from '../db.js';
 import { stateOf } from '../state.js';
@@ -41,6 +41,25 @@ export async function billRoutes(app: FastifyInstance) {
     if (q.chamber) add('b.chamber_of_origin = ?', q.chamber);
     if (q.measureType) add('b.measure_type = ?', q.measureType);
     if (q.status) add('b.status = ?', q.status);
+    // Friendly status bucket → expand to the raw status strings that map to it for
+    // this state (so pagination totals stay correct). 'other' also covers null status.
+    if (q.canonicalStatus) {
+      const rows = await query<{ value: string }>(
+        `SELECT DISTINCT status AS value FROM bill WHERE status IS NOT NULL AND state = '${stateLit}'`,
+      );
+      const raws = rows.map((r) => r.value).filter((v) => billStatusBucket(v) === q.canonicalStatus);
+      const includeNull = q.canonicalStatus === 'other';
+      if (raws.length && includeNull) {
+        params.push(raws);
+        where.push(`(b.status IS NULL OR b.status = ANY($${params.length}))`);
+      } else if (raws.length) {
+        add('b.status = ANY(?)', raws);
+      } else if (includeNull) {
+        where.push('b.status IS NULL');
+      } else {
+        where.push('false'); // bucket has no matching raw statuses in this state
+      }
+    }
     if (q.sponsor) add('EXISTS (SELECT 1 FROM sponsorship s WHERE s.bill_id = b.id AND s.legislator_id = ?)', q.sponsor);
     if (q.subject) add('EXISTS (SELECT 1 FROM bill_subject bs WHERE bs.bill_id = b.id AND bs.subject = ?)', q.subject);
 
@@ -125,8 +144,13 @@ export async function billRoutes(app: FastifyInstance) {
        WHERE bs.source <> 'foreign-affairs' AND b.state = '${stateLit}'
        GROUP BY bs.subject ORDER BY count(*) DESC, bs.subject LIMIT 80`,
     );
+    // Canonical buckets present in this state, in canonical order (drives the friendly
+    // status dropdown instead of the raw distinct strings).
+    const present = new Set(statuses.map((r) => billStatusBucket(r.value)));
+    const statusBuckets = BILL_STATUS_BUCKETS.filter((b) => present.has(b));
     return {
       statuses: statuses.map((r) => r.value),
+      statusBuckets,
       measureTypes: measureTypes.map((r) => r.value),
       subjects: subjects.map((r) => r.value),
     };

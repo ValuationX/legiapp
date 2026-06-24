@@ -10,6 +10,7 @@ import {
   SourceBadge,
   StatusBadge,
 } from '@/components/common';
+import { BILL_STATUS_BUCKET_LABELS, type BillStatusBucket } from '@legiapp/shared';
 import { Input, Select } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel, formatDate } from '@/lib/format';
@@ -34,7 +35,7 @@ export default function Bills() {
   const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (chamber) qs.set('chamber', chamber);
   if (measureType) qs.set('measureType', measureType);
-  if (status) qs.set('status', status);
+  if (status) qs.set('canonicalStatus', status);
   if (subject) qs.set('subject', subject);
   if (q) qs.set('q', q);
 
@@ -69,9 +70,9 @@ export default function Bills() {
         </Select>
         <Select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
-          {facets.data?.statuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {facets.data?.statusBuckets.map((b) => (
+            <option key={b} value={b}>
+              {BILL_STATUS_BUCKET_LABELS[b as BillStatusBucket]}
             </option>
           ))}
         </Select>
