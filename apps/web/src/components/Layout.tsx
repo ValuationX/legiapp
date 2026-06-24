@@ -70,7 +70,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           open ? 'translate-x-0 md:ml-0' : '-translate-x-full md:-ml-64',
         )}
       >
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-4">
+        <div className="flex h-14 items-center justify-between gap-2 border-b px-4">
           <Link to="/welcome" className="hover:opacity-80" aria-label="Bill Aid — home">
             <Logo size={30} />
           </Link>
