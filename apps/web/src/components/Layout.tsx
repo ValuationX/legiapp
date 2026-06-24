@@ -201,7 +201,7 @@ function Footer() {
           <span>© {year} Bill Aid — informational research aid; verify against the official record.</span>
         </div>
         <nav className="flex items-center gap-4">
-          <Link to="/donate" className="font-medium text-primary transition-colors hover:underline">
+          <Link to="/donate" className="font-medium text-primary transition-colors hover:text-foreground">
             Donate
           </Link>
           <FeedbackButton className="transition-colors hover:text-foreground">Feedback</FeedbackButton>
