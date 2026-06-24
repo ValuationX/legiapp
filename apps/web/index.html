@@ -5,15 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Bill Aid</title>
-    <!-- Warm the AdSense connection so its handshake overlaps HTML parse (~100-300ms on mobile). -->
+    <!-- Warm the AdSense connection (the script itself is loaded lazily, only on
+         content pages — see src/components/Ads.tsx — to satisfy AdSense's policy
+         against ads on content-less / navigation / alert screens). -->
     <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
     <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
-    <!-- Google AdSense (Auto Ads) -->
-    <script
-      async
-      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2504590710091105"
-      crossorigin="anonymous"
-    ></script>
     <script>
       // Apply the saved theme before paint to avoid a light flash in dark mode.
       try {

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Ads } from '@/components/Ads';
 import { DisclaimerModal } from '@/components/DisclaimerModal';
 import { DonatePrompt } from '@/components/DonateCallout';
 import { Layout } from '@/components/Layout';
@@ -173,6 +174,7 @@ export default function App() {
   return (
     <SettingsProvider>
       <StateProvider>
+        <Ads />
         <Shell />
       </StateProvider>
     </SettingsProvider>

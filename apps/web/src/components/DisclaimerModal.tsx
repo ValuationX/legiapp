@@ -26,6 +26,8 @@ export function DisclaimerModal() {
       /* ignore */
     }
     setAccepted(true);
+    // Let the Ads gate know it can load now (we're past the alert screen).
+    window.dispatchEvent(new Event('billaid:disclaimer-accepted'));
   };
 
   return (
