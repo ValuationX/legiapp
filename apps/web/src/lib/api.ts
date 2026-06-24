@@ -68,6 +68,19 @@ export interface BillFacets {
   subjects: string[];
 }
 
+export interface CommitteeMembershipRow {
+  committeeId: string;
+  committeeName: string;
+  committeeChamber: 'assembly' | 'senate' | null;
+  type: string | null;
+  fullName: string;
+  party: string | null;
+  memberChamber: 'assembly' | 'senate' | null;
+  district: number | null;
+  districtLabel: string | null;
+  role: 'chair' | 'vice_chair' | 'member';
+}
+
 export interface DistrictProperties {
   chamber: 'assembly' | 'senate';
   district: number;
@@ -128,6 +141,7 @@ export const api = {
   committees: (qs: string) => get<CommitteeSummary[]>(`/committees?${ws(qs)}`),
   committee: (id: string) => get<CommitteeDetail>(`/committees/${encodeURIComponent(id)}`),
   committeeBills: (id: string) => get<BillSummary[]>(`/committees/${encodeURIComponent(id)}/bills`),
+  committeeMemberships: () => get<CommitteeMembershipRow[]>(`/committees/memberships?${ws()}`),
   vote: (id: string) => get<VoteEventDetail>(`/votes/${encodeURIComponent(id)}`),
   districts: (chamber: 'assembly' | 'senate') => get<DistrictCollection>(`/districts/${chamber}?${ws()}`),
   calendar: (qs: string) => get<CalendarEvent[]>(`/calendar?${ws(qs)}`),

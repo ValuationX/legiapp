@@ -68,4 +68,21 @@ export async function committeeRoutes(app: FastifyInstance) {
       [id],
     );
   });
+
+  // All committee memberships for the state (committee × member) — powers the
+  // "which member is on which committee" export. Static path takes precedence over
+  // /api/committees/:id in Fastify's router.
+  app.get('/api/committees/memberships', async (req) => {
+    const stateLit = stateOf(req);
+    return query(
+      `SELECT c.id AS "committeeId", c.name AS "committeeName", c.chamber AS "committeeChamber", c.type,
+              l.full_name AS "fullName", l.party, l.chamber AS "memberChamber",
+              l.district, l.district_label AS "districtLabel", cm.role
+       FROM committee_membership cm
+       JOIN committee c ON c.id = cm.committee_id
+       JOIN legislator l ON l.id = cm.legislator_id
+       WHERE c.state = '${stateLit}'
+       ORDER BY c.chamber, c.name, cm.role, l.full_name`,
+    );
+  });
 }

@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Users } from 'lucide-react';
+import { Building2, Download, Users } from 'lucide-react';
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorState, PageHeader } from '@/components/common';
-import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
+import { Badge, Button, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
 import { chamberLabel } from '@/lib/format';
 import { useStateCtx, useStateLabels } from '@/lib/state';
+import { downloadWorkbook } from '@/lib/xlsx';
 
 export default function Committees() {
   const [chamber, setChamber] = React.useState('');
@@ -23,12 +24,67 @@ export default function Committees() {
     queryFn: () => api.committees(qs.toString()),
   });
 
+  const [isExporting, setIsExporting] = React.useState(false);
+  // Fetches the full committee × member roster on demand (so "which member is on
+  // which committee" exports even though the list view only shows counts).
+  const exportXlsx = async () => {
+    setIsExporting(true);
+    try {
+      const memberships = await api.committeeMemberships();
+      const roleLabel = (r: string) => (r === 'chair' ? 'Chair' : r === 'vice_chair' ? 'Vice chair' : 'Member');
+      await downloadWorkbook(`legiapp-${state.toLowerCase()}-committees.xlsx`, [
+        {
+          name: 'Memberships',
+          columns: [
+            { header: 'Committee', key: 'committee', width: 40 },
+            { header: 'Chamber', key: 'chamber', width: 14 },
+            { header: 'Type', key: 'type', width: 14 },
+            { header: 'Member', key: 'member', width: 24 },
+            { header: 'Party', key: 'party', width: 14 },
+            { header: 'District', key: 'district', width: 12 },
+            { header: 'Role', key: 'role', width: 12 },
+          ],
+          rows: memberships.map((m) => ({
+            committee: m.committeeName,
+            chamber: m.committeeChamber ? chamberLabel(m.committeeChamber) : '',
+            type: m.type ?? '',
+            member: m.fullName,
+            party: m.party ?? '',
+            district: m.districtLabel ?? m.district ?? '',
+            role: roleLabel(m.role),
+          })),
+        },
+        {
+          name: 'Committees',
+          columns: [
+            { header: 'Committee', key: 'committee', width: 40 },
+            { header: 'Chamber', key: 'chamber', width: 14 },
+            { header: 'Type', key: 'type', width: 14 },
+            { header: 'Members', key: 'members', width: 10 },
+          ],
+          rows: (data ?? []).map((c) => ({
+            committee: c.name,
+            chamber: c.chamber ? chamberLabel(c.chamber) : '',
+            type: c.type ?? '',
+            members: c.memberCount,
+          })),
+        },
+      ]);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="Committees"
         subtitle="Standing committees where bills are heard and voted before reaching the floor."
-      />
+      >
+        <Button variant="outline" size="sm" onClick={exportXlsx} disabled={isExporting}>
+          <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
+      </PageHeader>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Input placeholder="Search committees…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />

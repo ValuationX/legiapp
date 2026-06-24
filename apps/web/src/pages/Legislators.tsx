@@ -1,15 +1,16 @@
 import type { LegislatorSummary } from '@legiapp/shared';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutGrid, Table as TableIcon } from 'lucide-react';
+import { Download, LayoutGrid, Table as TableIcon } from 'lucide-react';
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorState, LoadingRows, MemberAvatar, MemberCell, PageHeader, PartyBadge, SourceBadge } from '@/components/common';
-import { Badge, Input, Select, Skeleton } from '@/components/ui/primitives';
+import { Badge, Button, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api } from '@/lib/api';
 import { chamberLabel, partyMeta } from '@/lib/format';
 import { useStateCtx, useStateLabels } from '@/lib/state';
 import { cn } from '@/lib/utils';
+import { downloadWorkbook } from '@/lib/xlsx';
 
 export default function Legislators() {
   const [chamber, setChamber] = React.useState('');
@@ -18,6 +19,7 @@ export default function Legislators() {
   const [q, setQ] = React.useState('');
   const [view, setView] = React.useState<'gallery' | 'table'>('gallery');
   const [sort, setSort] = React.useState<'district' | 'party' | 'name'>('district');
+  const [isExporting, setIsExporting] = React.useState(false);
   const sl = useStateLabels();
   const { state } = useStateCtx();
 
@@ -50,12 +52,51 @@ export default function Legislators() {
     return arr;
   }, [items, sort]);
 
+  const exportXlsx = async () => {
+    if (!sorted.length) return;
+    setIsExporting(true);
+    try {
+      await downloadWorkbook(`legiapp-${state.toLowerCase()}-legislators.xlsx`, [
+        {
+          name: 'Legislators',
+          columns: [
+            { header: 'Name', key: 'name', width: 26 },
+            { header: 'Party', key: 'party', width: 14 },
+            { header: 'Chamber', key: 'chamber', width: 14 },
+            { header: 'District', key: 'district', width: 12 },
+            { header: 'Leadership role(s)', key: 'roles', width: 28 },
+            { header: 'In office', key: 'inOffice', width: 10 },
+            { header: 'Next election', key: 'nextElection', width: 13 },
+            { header: 'Source', key: 'source', width: 14 },
+          ],
+          rows: sorted.map((l) => ({
+            name: l.fullName,
+            party: l.party ?? '',
+            chamber: chamberLabel(l.chamber),
+            district: l.districtLabel ?? l.district ?? '',
+            roles: l.leadershipRoles.map((r) => r.role).join(', '),
+            inOffice: l.inOffice ? 'Yes' : 'No',
+            nextElection: l.nextElectionYear ?? '',
+            source: l.source,
+          })),
+        },
+      ]);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader title="Legislators" subtitle={`All ${sl.seatTotal} members of the ${sl.name} ${sl.lowerLabel} and ${sl.upperLabel}.`}>
-        <div className="inline-flex rounded-md border bg-card p-1">
-          <ViewBtn active={view === 'gallery'} onClick={() => setView('gallery')} icon={LayoutGrid} />
-          <ViewBtn active={view === 'table'} onClick={() => setView('table')} icon={TableIcon} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportXlsx} disabled={isExporting || !sorted.length}>
+            <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Excel'}
+          </Button>
+          <div className="inline-flex rounded-md border bg-card p-1">
+            <ViewBtn active={view === 'gallery'} onClick={() => setView('gallery')} icon={LayoutGrid} />
+            <ViewBtn active={view === 'table'} onClick={() => setView('table')} icon={TableIcon} />
+          </div>
         </div>
       </PageHeader>
 

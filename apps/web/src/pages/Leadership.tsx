@@ -1,12 +1,16 @@
 import { FA_REGION_BY_KEY } from '@legiapp/shared';
 import { useQuery } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
+import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ErrorState, PageHeader, PartyBadge } from '@/components/common';
-import { Skeleton } from '@/components/ui/primitives';
+import { Button, Skeleton } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
 import { api, type LeadershipRow } from '@/lib/api';
+import { chamberLabel } from '@/lib/format';
 import { useSettings } from '@/lib/settings';
 import { useStateCtx, useStateLabels } from '@/lib/state';
+import { downloadWorkbook } from '@/lib/xlsx';
 
 export default function Leadership() {
   const sl = useStateLabels();
@@ -19,12 +23,51 @@ export default function Leadership() {
   const senate = rows.filter((r) => r.chamber === 'senate');
   const assembly = rows.filter((r) => r.chamber === 'assembly');
 
+  const [isExporting, setIsExporting] = React.useState(false);
+  const exportXlsx = async () => {
+    if (!rows.length) return;
+    setIsExporting(true);
+    try {
+      await downloadWorkbook(`legiapp-${state.toLowerCase()}-leadership.xlsx`, [
+        {
+          name: 'Leadership',
+          columns: [
+            { header: 'Role', key: 'role', width: 28 },
+            { header: 'Member', key: 'member', width: 24 },
+            { header: 'Party', key: 'party', width: 14 },
+            { header: 'Chamber', key: 'chamber', width: 14 },
+            { header: 'District', key: 'district', width: 12 },
+            { header: 'Email', key: 'email', width: 28 },
+            { header: 'Phone', key: 'phone', width: 16 },
+            { header: 'Ukraine & FA bills', key: 'faBills', width: 40 },
+          ],
+          rows: rows.map((r) => ({
+            role: r.role,
+            member: r.fullName,
+            party: r.party ?? '',
+            chamber: r.chamber ? chamberLabel(r.chamber) : '',
+            district: r.districtLabel ?? r.district ?? '',
+            email: r.email ?? '',
+            phone: r.phone ?? '',
+            faBills: r.faBills.map((b) => b.identifier).join(', '),
+          })),
+        },
+      ]);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="Leadership"
         subtitle={`Who controls the agenda in the ${sl.name} Legislature${showForeignAffairs ? " — with each leader's Ukraine & foreign-affairs record" : ''}.`}
-      />
+      >
+        <Button variant="outline" size="sm" onClick={exportXlsx} disabled={isExporting || !rows.length}>
+          <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
+      </PageHeader>
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : rows.length === 0 ? (
