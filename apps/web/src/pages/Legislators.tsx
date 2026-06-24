@@ -108,10 +108,10 @@ export default function Legislators() {
               <TR>
                 <TH>Member</TH>
                 <TH>Party</TH>
-                <TH>Chamber</TH>
+                <TH className="hidden md:table-cell">Chamber</TH>
                 <TH>District</TH>
-                <TH>Role</TH>
-                <TH>Source</TH>
+                <TH className="hidden md:table-cell">Role</TH>
+                <TH className="hidden md:table-cell">Source</TH>
               </TR>
             </THead>
             <TBody>
@@ -126,9 +126,9 @@ export default function Legislators() {
                     <TD>
                       <PartyBadge party={l.party} />
                     </TD>
-                    <TD className="text-sm">{chamberLabel(l.chamber)}</TD>
+                    <TD className="hidden text-sm md:table-cell">{chamberLabel(l.chamber)}</TD>
                     <TD className="tabular text-sm">{l.districtLabel ?? l.district}</TD>
-                    <TD>
+                    <TD className="hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {l.leadershipRoles.map((r) => (
                           <Badge key={r.role} className="bg-primary/10 text-primary ring-1 ring-primary/20">
@@ -137,7 +137,7 @@ export default function Legislators() {
                         ))}
                       </div>
                     </TD>
-                    <TD>
+                    <TD className="hidden md:table-cell">
                       <SourceBadge source={l.source} lastVerified={l.lastVerified} conflict={l.conflict} />
                     </TD>
                   </TR>
@@ -156,7 +156,7 @@ function ViewBtn({ active, onClick, icon: Icon }: { active: boolean; onClick: ()
     <button
       onClick={onClick}
       className={cn(
-        'rounded p-1.5 transition-colors',
+        'flex h-9 w-9 items-center justify-center rounded transition-colors sm:h-7 sm:w-7',
         active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >

@@ -48,12 +48,12 @@ export default function Bills() {
     <div>
       <PageHeader title="Bills" subtitle={`Measures in the current ${sl.name} legislative session.`} />
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           placeholder="Search number or title…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="max-w-xs"
+          className="w-full sm:max-w-xs"
         />
         <Select aria-label="Filter by chamber" value={chamber} onChange={(e) => setChamber(e.target.value)}>
           <option value="">All chambers</option>
@@ -98,9 +98,9 @@ export default function Bills() {
                 <TH className="w-20">Bill</TH>
                 <TH>Title</TH>
                 <TH>Status</TH>
-                <TH>Origin</TH>
-                <TH>Last action</TH>
-                <TH>Source</TH>
+                <TH className="hidden md:table-cell">Origin</TH>
+                <TH className="hidden sm:table-cell">Last action</TH>
+                <TH className="hidden md:table-cell">Source</TH>
               </TR>
             </THead>
             <TBody>
@@ -133,11 +133,11 @@ export default function Bills() {
                     <TD>
                       <StatusBadge status={b.status} />
                     </TD>
-                    <TD className="text-sm">{chamberLabel(b.chamberOfOrigin)}</TD>
-                    <TD className="whitespace-nowrap text-sm tabular text-muted-foreground">
+                    <TD className="hidden text-sm md:table-cell">{chamberLabel(b.chamberOfOrigin)}</TD>
+                    <TD className="hidden text-sm tabular text-muted-foreground sm:table-cell">
                       {formatDate(b.lastActionDate)}
                     </TD>
-                    <TD>
+                    <TD className="hidden md:table-cell">
                       <SourceBadge source={b.source} lastVerified={b.lastVerified} conflict={b.conflict} />
                     </TD>
                   </TR>

@@ -39,12 +39,47 @@ export default function Leadership() {
   );
 }
 
+function MemberName({ r }: { r: LeadershipRow }) {
+  return r.legislatorId ? (
+    <Link to={`/legislators/${r.legislatorId}`} className="font-medium text-primary hover:underline">
+      {r.fullName}
+    </Link>
+  ) : (
+    <span className="font-medium">{r.fullName}</span>
+  );
+}
+
+function FaBillChips({ bills }: { bills: LeadershipRow['faBills'] }) {
+  if (!bills.length) return <span className="text-xs text-muted-foreground">No record</span>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {bills.map((b) => (
+        <Link
+          key={b.id}
+          to={`/bills/${b.id}`}
+          title={`${b.type === 'primary' ? 'Lead author' : 'Co-author'}${
+            b.regions?.length ? ` · ${b.regions.map((x) => FA_REGION_BY_KEY.get(x)?.label ?? x).join(', ')}` : ''
+          }`}
+          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs hover:bg-accent ${
+            b.type === 'primary' ? 'border-primary/30 bg-primary/5 text-primary' : 'border-border'
+          }`}
+        >
+          {b.identifier}
+          <span className="text-[10px] uppercase text-muted-foreground">{b.type === 'primary' ? 'lead' : 'co'}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function Section({ title, rows, showFA }: { title: string; rows: LeadershipRow[]; showFA: boolean }) {
   if (!rows.length) return null;
   return (
     <div>
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
-      <div className="overflow-hidden rounded-lg border bg-card">
+
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
         <Table>
           <THead>
             <TR>
@@ -59,13 +94,7 @@ function Section({ title, rows, showFA }: { title: string; rows: LeadershipRow[]
               <TR key={`${r.role}-${r.legislatorId}-${i}`}>
                 <TD className="text-sm font-medium">{r.role}</TD>
                 <TD>
-                  {r.legislatorId ? (
-                    <Link to={`/legislators/${r.legislatorId}`} className="font-medium text-primary hover:underline">
-                      {r.fullName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{r.fullName}</span>
-                  )}
+                  <MemberName r={r} />
                   {r.party ? (
                     <span className="ml-2 align-middle">
                       <PartyBadge party={r.party} />
@@ -75,37 +104,34 @@ function Section({ title, rows, showFA }: { title: string; rows: LeadershipRow[]
                 <TD className="text-sm tabular text-muted-foreground">{r.districtLabel ?? r.district ?? '—'}</TD>
                 {showFA ? (
                   <TD>
-                    {r.faBills.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">No record</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {r.faBills.map((b) => (
-                          <Link
-                            key={b.id}
-                            to={`/bills/${b.id}`}
-                            title={`${b.type === 'primary' ? 'Lead author' : 'Co-author'}${
-                              b.regions?.length
-                                ? ` · ${b.regions.map((x) => FA_REGION_BY_KEY.get(x)?.label ?? x).join(', ')}`
-                                : ''
-                            }`}
-                            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs hover:bg-accent ${
-                              b.type === 'primary' ? 'border-primary/30 bg-primary/5 text-primary' : 'border-border'
-                            }`}
-                          >
-                            {b.identifier}
-                            <span className="text-[10px] uppercase text-muted-foreground">
-                              {b.type === 'primary' ? 'lead' : 'co'}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
+                    <FaBillChips bills={r.faBills} />
                   </TD>
                 ) : null}
               </TR>
             ))}
           </TBody>
         </Table>
+      </div>
+
+      {/* Mobile: stacked cards (the table's fixed columns + FA column don't fit a phone) */}
+      <div className="space-y-2 md:hidden">
+        {rows.map((r, i) => (
+          <div key={`m-${r.role}-${r.legislatorId}-${i}`} className="rounded-lg border bg-card p-3">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{r.role}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <MemberName r={r} />
+              {r.party ? <PartyBadge party={r.party} /> : null}
+              <span className="ml-auto text-xs tabular text-muted-foreground">
+                {r.districtLabel ?? r.district ?? '—'}
+              </span>
+            </div>
+            {showFA ? (
+              <div className="mt-2">
+                <FaBillChips bills={r.faBills} />
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
     </div>
   );
