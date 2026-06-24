@@ -6,9 +6,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { EmptyState, ErrorState, PageHeader, StatusBadge } from '@/components/common';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Skeleton } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
-import { downloadCsv, toCsv } from '@/lib/csv';
-import { alignmentMeta, formatDate, partyMeta } from '@/lib/format';
+import { alignmentMeta, formatDate, partyMeta, statusMeta } from '@/lib/format';
 import { useStateCtx, useStateLabels } from '@/lib/state';
+import { downloadWorkbook } from '@/lib/xlsx';
 import { cn } from '@/lib/utils';
 
 function SponsorChip({ s }: { s: FaSponsor }) {
@@ -165,53 +165,95 @@ export default function ForeignAffairs() {
 
   const suffixParts = [region, chamber].filter(Boolean);
   const suffix = suffixParts.length ? `-${suffixParts.join('-')}` : '';
+  const [isExporting, setIsExporting] = React.useState(false);
 
-  // Bills export — one row per measure, sponsors split into in-office vs left-office.
-  const exportBills = () => {
+  // One formatted .xlsx workbook: Bills + Allies + About sheets. Reflects the active
+  // region/chamber filters and the current bill search/sort (it reads visibleBills/leaders).
+  const exportXlsx = async () => {
     if (!data) return;
-    const rows = visibleBills.map((b) => [
-      b.identifier,
-      b.session,
-      formatDate(b.introducedDate),
-      formatDate(b.lastActionDate),
-      b.title ?? '',
-      b.regions.join('; '),
-      b.status ?? '',
-      b.signed ? 'Chaptered' : '',
-      b.authors.map((a) => a.name).join('; '),
-      b.coauthors.length,
-      b.coauthors.filter((c) => c.currentlyInOffice).map((c) => c.name).join('; '),
-      b.coauthors.filter((c) => !c.currentlyInOffice).map((c) => c.name).join('; '),
-    ]);
-    const csv = toCsv(
-      ['Bill', 'Session', 'Introduced', 'Last action', 'Title', 'Regions', 'Status', 'Chaptered',
-       'Author(s)', '# Coauthors', 'Coauthors (in office)', 'Coauthors (left office)'],
-      rows,
-    );
-    downloadCsv(`ukraine-bills${suffix}.csv`, csv);
-  };
-
-  // Allies export — the outreach list: one row per legislator with alignment + contact.
-  const exportAllies = () => {
-    if (!data) return;
-    const rows = leaders.map((l) => [
-      l.name,
-      alignmentMeta(l.level).label,
-      l.score,
-      l.authored,
-      l.coauthored,
-      l.passed,
-      l.inOffice ? 'In office' : 'Left office',
-      l.party ?? '',
-      l.chamber ?? '',
-      l.email ?? '',
-      l.phone ?? '',
-    ]);
-    const csv = toCsv(
-      ['Legislator', 'Alignment', 'Score', 'Authored', 'Coauthored', 'Passed', 'Status', 'Party', 'Chamber', 'Email', 'Phone'],
-      rows,
-    );
-    downloadCsv(`ukraine-allies${suffix}.csv`, csv);
+    setIsExporting(true);
+    try {
+      const regionLabel = data.regions.find((r) => r.key === region)?.label ?? 'All regions';
+      const chamberLabel = chamber ? (chamber === 'senate' ? sl.upperLabel : sl.lowerLabel) : 'Both';
+      await downloadWorkbook(`legiapp-ukraine${suffix}.xlsx`, [
+        {
+          name: 'Bills',
+          columns: [
+            { header: 'Bill', key: 'bill', width: 12 },
+            { header: 'Session', key: 'session', width: 12 },
+            { header: 'Title', key: 'title', width: 60 },
+            { header: 'Region(s)', key: 'regions', width: 18 },
+            { header: 'Status', key: 'status', width: 16 },
+            { header: 'Signed', key: 'signed', width: 9 },
+            { header: 'Authors', key: 'authors', width: 30 },
+            { header: 'Coauthors', key: 'coauthors', width: 40 },
+            { header: 'Ayes', key: 'ayes', width: 7 },
+            { header: 'Noes', key: 'noes', width: 7 },
+          ],
+          rows: visibleBills.map((b) => ({
+            bill: b.identifier,
+            session: b.session,
+            title: b.title ?? '',
+            regions: b.regions.join(', '),
+            status: b.status ? statusMeta(b.status).label : '',
+            signed: b.signed ? 'Yes' : 'No',
+            authors: b.authors.map((a) => a.name).join(', '),
+            coauthors: b.coauthors.map((c) => `${c.name}${c.currentlyInOffice ? '' : ' (left office)'}`).join(', '),
+            ayes: b.ayes ?? '',
+            noes: b.noes ?? '',
+          })),
+        },
+        {
+          name: 'Allies',
+          columns: [
+            { header: 'Legislator', key: 'name', width: 26 },
+            { header: 'Party', key: 'party', width: 14 },
+            { header: 'Chamber', key: 'chamber', width: 12 },
+            { header: 'Alignment', key: 'alignment', width: 14 },
+            { header: 'Score', key: 'score', width: 8 },
+            { header: 'Authored', key: 'authored', width: 10 },
+            { header: 'Coauthored', key: 'coauthored', width: 12 },
+            { header: 'Passed', key: 'passed', width: 9 },
+            { header: 'In office', key: 'inOffice', width: 10 },
+            { header: 'Email', key: 'email', width: 28 },
+            { header: 'Phone', key: 'phone', width: 16 },
+          ],
+          rows: leaders.map((l) => ({
+            name: l.name,
+            party: l.party ?? '',
+            chamber: l.chamber ?? '',
+            alignment: alignmentMeta(l.level).label,
+            score: l.score,
+            authored: l.authored,
+            coauthored: l.coauthored,
+            passed: l.passed,
+            inOffice: l.inOffice ? 'Yes' : 'No',
+            email: l.email ?? '',
+            phone: l.phone ?? '',
+          })),
+        },
+        {
+          name: 'About',
+          columns: [
+            { header: 'Field', key: 'field', width: 22 },
+            { header: 'Value', key: 'value', width: 50 },
+          ],
+          rows: [
+            { field: 'Export', value: 'Bill Aid — Ukraine & Foreign Affairs' },
+            { field: 'State', value: sl.name },
+            { field: 'Region filter', value: regionLabel },
+            { field: 'Chamber filter', value: chamberLabel },
+            { field: 'Bill search', value: billQuery.trim() || '(none)' },
+            { field: 'Bills exported', value: visibleBills.length },
+            { field: 'Allies exported', value: leaders.length },
+            { field: 'Exported (UTC)', value: new Date().toISOString().slice(0, 10) },
+            { field: 'Source', value: 'Official legislative records, via Bill Aid' },
+          ],
+        },
+      ]);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -220,14 +262,14 @@ export default function ForeignAffairs() {
         title="Ukraine & Foreign Affairs"
         subtitle={`Ukraine and Ukraine-adjacent ${sl.name} measures across recent sessions — who authored, coauthored, and signed on, including allies who have since left office.`}
       >
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportBills} disabled={!visibleBills.length}>
-            <Download className="h-4 w-4" /> Bills CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportAllies} disabled={!leaders.length}>
-            <Download className="h-4 w-4" /> Allies CSV
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportXlsx}
+          disabled={isExporting || (!visibleBills.length && !leaders.length)}
+        >
+          <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </PageHeader>
 
       {/* Region chips — Ukraine & adjacent first */}
