@@ -10,6 +10,7 @@ import {
   Map,
   MapPin,
   Menu,
+  MessageSquarePlus,
   Moon,
   Search,
   Settings as SettingsIcon,
@@ -20,6 +21,7 @@ import {
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { FeedbackButton } from '@/components/FeedbackButton';
 import { Logo, LogoMark } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
 import { useSettings } from '@/lib/settings';
@@ -95,6 +97,10 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             <Heart className="h-4 w-4 shrink-0 text-primary" />
             Donate
           </NavLink>
+          <FeedbackButton className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground">
+            <MessageSquarePlus className="h-4 w-4 shrink-0" />
+            Feedback
+          </FeedbackButton>
           <NavLink to="/settings" className={navLinkClass}>
             <SettingsIcon className="h-4 w-4 shrink-0" />
             Settings
@@ -198,6 +204,7 @@ function Footer() {
           <Link to="/donate" className="font-medium text-primary transition-colors hover:underline">
             Donate
           </Link>
+          <FeedbackButton className="transition-colors hover:text-foreground">Feedback</FeedbackButton>
           <Link to="/about" className="transition-colors hover:text-foreground">
             About
           </Link>
