@@ -1,16 +1,14 @@
 import { lazy, Suspense } from 'react';
 import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
-import { ArrowLeft } from 'lucide-react';
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { Ads } from '@/components/Ads';
-import { DisclaimerModal } from '@/components/DisclaimerModal';
-import { DonatePrompt } from '@/components/DonateCallout';
+import { ConsentBanner } from '@/components/ConsentBanner';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
 import { Spinner } from '@/components/ui/primitives';
 import { SettingsProvider, useSettings } from '@/lib/settings';
-import { StateProvider, useStateCtx } from '@/lib/state';
+import { StateProvider } from '@/lib/state';
 
 // Pages are code-split: each becomes its own chunk loaded on demand, so the
 // initial bundle no longer carries every route (notably Map's leaflet + turf).
@@ -91,56 +89,11 @@ function StateLanding({ redirectTo = '/' }: { redirectTo?: string }) {
 }
 
 function Shell() {
-  const { chosen } = useStateCtx();
-  const location = useLocation();
-  // The must-accept notice shows on every screen (including the landing overview)
-  // EXCEPT the legal pages, so users can read Privacy/Terms before accepting.
-  const onLegalPage = location.pathname === '/privacy' || location.pathname === '/terms';
-
-  if (!chosen) {
-    // Legal pages stay reachable before a state is chosen (the disclaimer links to
-    // them) and render without the overlay so they can actually be read.
-    if (onLegalPage) {
-      return (
-        <div className="mx-auto min-h-screen max-w-3xl px-4 py-6">
-          {/* A way back: without a sidebar yet (no state chosen), the legal page would
-              otherwise be a dead end after following the disclaimer link. */}
-          <div className="mb-6 flex items-center justify-between">
-            <Link to="/" aria-label="Bill Aid home" className="inline-flex">
-              <Logo size={28} />
-            </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Bill Aid
-            </Link>
-          </div>
-          <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-            </Routes>
-          </Suspense>
-        </div>
-      );
-    }
-    // Preserve a first-time deep link (/bills/123, shared /foreign-affairs?region=…):
-    // after a state is chosen, land on the originally-requested URL instead of '/'.
-    const dest = location.pathname === '/welcome' ? '/' : location.pathname + location.search;
-    return (
-      <>
-        <DisclaimerModal />
-        <StateLanding redirectTo={dest} />
-      </>
-    );
-  }
+  // Content-first: every visitor lands on real content (default state) so Google can
+  // crawl the site and there's no content-less gate. The state picker lives in the
+  // topbar; the intro/overview stays reachable at /welcome (via the logo).
   return (
-    <>
-      {!onLegalPage && <DisclaimerModal />}
-      {!onLegalPage && <DonatePrompt />}
-      <Suspense fallback={<RouteFallback />}>
+    <Suspense fallback={<RouteFallback />}>
       <Routes>
         <Route path="/welcome" element={<StateLanding />} />
         <Route element={<Layout />}>
@@ -164,8 +117,7 @@ function Shell() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
-      </Suspense>
-    </>
+    </Suspense>
   );
 }
 
@@ -176,6 +128,7 @@ export default function App() {
       <StateProvider>
         <Ads />
         <Shell />
+        <ConsentBanner />
       </StateProvider>
     </SettingsProvider>
   );
