@@ -1,12 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Ads } from '@/components/Ads';
 import { ConsentBanner } from '@/components/ConsentBanner';
 import { Layout } from '@/components/Layout';
 import { Logo } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
 import { Spinner } from '@/components/ui/primitives';
+import { DONATIONS_ENABLED } from '@/lib/donate';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { StateProvider } from '@/lib/state';
 
@@ -106,7 +107,7 @@ function Shell() {
           <Route path="/committees" element={<Committees />} />
           <Route path="/committees/:id" element={<CommitteeDetail />} />
           <Route path="/calendar" element={<Calendar />} />
-          <Route path="/donate" element={<Donate />} />
+          <Route path="/donate" element={DONATIONS_ENABLED ? <Donate /> : <Navigate to="/" replace />} />
           <Route path="/foreign-affairs" element={<ForeignAffairs />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/votes/:id" element={<VoteDetail />} />

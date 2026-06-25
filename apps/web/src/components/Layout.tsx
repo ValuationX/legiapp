@@ -24,6 +24,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { Logo, LogoMark } from '@/components/Logo';
 import { StatePicker } from '@/components/StatePicker';
+import { DONATIONS_ENABLED } from '@/lib/donate';
 import { useSettings } from '@/lib/settings';
 import { useStateCtx } from '@/lib/state';
 import { cn } from '@/lib/utils';
@@ -93,10 +94,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </nav>
 
         <div className="space-y-1 border-t p-3">
-          <NavLink to="/donate" className={(p) => cn(navLinkClass(p), 'group')}>
-            <Heart className="h-4 w-4 shrink-0 text-primary transition-colors group-hover:text-foreground" />
-            Donate
-          </NavLink>
+          {DONATIONS_ENABLED && (
+            <NavLink to="/donate" className={(p) => cn(navLinkClass(p), 'group')}>
+              <Heart className="h-4 w-4 shrink-0 text-primary transition-colors group-hover:text-foreground" />
+              Donate
+            </NavLink>
+          )}
           <FeedbackButton className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground">
             <MessageSquarePlus className="h-4 w-4 shrink-0" />
             Feedback
@@ -201,9 +204,11 @@ function Footer() {
           <span>© {year} Bill Aid — informational research aid; verify against the official record.</span>
         </div>
         <nav className="flex items-center gap-4">
-          <Link to="/donate" className="font-medium text-primary transition-colors hover:text-foreground">
-            Donate
-          </Link>
+          {DONATIONS_ENABLED && (
+            <Link to="/donate" className="font-medium text-primary transition-colors hover:text-foreground">
+              Donate
+            </Link>
+          )}
           <FeedbackButton className="transition-colors hover:text-foreground">Feedback</FeedbackButton>
           <Link to="/about" className="transition-colors hover:text-foreground">
             About

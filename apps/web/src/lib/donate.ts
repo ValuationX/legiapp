@@ -1,3 +1,8 @@
+// Master switch for the remaining donation surfaces — the Donate page + route and
+// the sidebar/footer "Donate" links. Set to false to hide everything for now; flip
+// back to true to restore it. The Ko-fi wiring below stays intact either way.
+export const DONATIONS_ENABLED: boolean = false;
+
 // ── Ko-fi configuration — the single source of truth ─────────────────────────
 // To CONNECT Ko-fi: set KOFI_USERNAME to the project's Ko-fi handle (the slug in
 // ko-fi.com/<handle>, e.g. 'billaid'). That one change lights up the Donate page's
