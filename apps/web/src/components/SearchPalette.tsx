@@ -15,7 +15,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
   const [debounced, setDebounced] = React.useState('');
   const navigate = useNavigate();
   const { state } = useStateCtx();
-  const { showForeignAffairs } = useSettings();
+  const { experimentalFeatures } = useSettings();
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 180);
@@ -66,7 +66,7 @@ export function SearchPalette({ open, onOpenChange }: { open: boolean; onOpenCha
               </Command.Empty>
 
               {(() => {
-                const regionKey = showForeignAffairs ? matchRegions(debounced)[0] : undefined;
+                const regionKey = experimentalFeatures ? matchRegions(debounced)[0] : undefined;
                 const fa = regionKey ? FA_REGION_BY_KEY.get(regionKey) : undefined;
                 return fa ? (
                   <Command.Group heading="Tracker" className="px-1 text-xs font-medium text-muted-foreground">

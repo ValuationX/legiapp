@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Crown, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
+import { Building2, FileText, Globe, Map as MapIcon, Users } from 'lucide-react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Ads } from '@/components/Ads';
 import { ConsentBanner } from '@/components/ConsentBanner';
@@ -45,12 +45,12 @@ function RouteFallback() {
  *  Shown on first visit (no state chosen) and reachable anytime via the logo (/welcome). */
 function StateLanding({ redirectTo = '/' }: { redirectTo?: string }) {
   const navigate = useNavigate();
-  const { showForeignAffairs } = useSettings();
+  const { experimentalFeatures } = useSettings();
   const features = [
     { icon: FileText, label: 'Bills', desc: 'Search & track legislation' },
     { icon: Users, label: 'Legislators', desc: 'Votes & sponsorships' },
-    { icon: Crown, label: 'Leadership', desc: 'Who holds the gavel' },
-    showForeignAffairs
+    { icon: Building2, label: 'Committees', desc: 'Who hears what' },
+    experimentalFeatures
       ? { icon: Globe, label: 'Foreign Affairs', desc: 'Ukraine & global measures' }
       : { icon: MapIcon, label: 'District Map', desc: 'Find your reps' },
   ];
@@ -89,6 +89,12 @@ function StateLanding({ redirectTo = '/' }: { redirectTo?: string }) {
   );
 }
 
+/** Gates a route behind the Experimental features setting; redirects home when off. */
+function ExperimentalRoute({ children }: { children: React.ReactNode }) {
+  const { experimentalFeatures } = useSettings();
+  return experimentalFeatures ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 function Shell() {
   // Content-first: every visitor lands on real content (default state) so Google can
   // crawl the site and there's no content-less gate. The state picker lives in the
@@ -101,14 +107,14 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/legislators" element={<Legislators />} />
           <Route path="/legislators/:id" element={<LegislatorDetail />} />
-          <Route path="/leadership" element={<Leadership />} />
+          <Route path="/leadership" element={<ExperimentalRoute><Leadership /></ExperimentalRoute>} />
           <Route path="/bills" element={<Bills />} />
           <Route path="/bills/:id" element={<BillDetail />} />
           <Route path="/committees" element={<Committees />} />
           <Route path="/committees/:id" element={<CommitteeDetail />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/donate" element={DONATIONS_ENABLED ? <Donate /> : <Navigate to="/" replace />} />
-          <Route path="/foreign-affairs" element={<ForeignAffairs />} />
+          <Route path="/foreign-affairs" element={<ExperimentalRoute><ForeignAffairs /></ExperimentalRoute>} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/votes/:id" element={<VoteDetail />} />
           <Route path="/settings" element={<Settings />} />

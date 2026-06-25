@@ -15,7 +15,7 @@ import { downloadWorkbook } from '@/lib/xlsx';
 export default function Leadership() {
   const sl = useStateLabels();
   const { state } = useStateCtx();
-  const { showForeignAffairs } = useSettings();
+  const { experimentalFeatures } = useSettings();
   const { data, isLoading, isError, error } = useQuery({ queryKey: ['leadership', state], queryFn: api.leadership });
   if (isError) return <ErrorState error={error} />;
 
@@ -62,7 +62,7 @@ export default function Leadership() {
     <div>
       <PageHeader
         title="Leadership"
-        subtitle={`Who controls the agenda in the ${sl.name} Legislature${showForeignAffairs ? " — with each leader's Ukraine & foreign-affairs record" : ''}.`}
+        subtitle={`Who controls the agenda in the ${sl.name} Legislature${experimentalFeatures ? " — with each leader's Ukraine & foreign-affairs record" : ''}.`}
       >
         <Button variant="outline" size="sm" onClick={exportXlsx} disabled={isExporting || !rows.length}>
           <Download className="h-4 w-4" /> {isExporting ? 'Exporting…' : 'Export Excel'}
@@ -74,8 +74,8 @@ export default function Leadership() {
         <p className="text-sm text-muted-foreground">No leadership roster is loaded for this state yet.</p>
       ) : (
         <div className="space-y-8">
-          <Section title={`${sl.upperLabel} leadership`} rows={senate} showFA={showForeignAffairs} />
-          <Section title={`${sl.lowerLabel} leadership`} rows={assembly} showFA={showForeignAffairs} />
+          <Section title={`${sl.upperLabel} leadership`} rows={senate} showFA={experimentalFeatures} />
+          <Section title={`${sl.lowerLabel} leadership`} rows={assembly} showFA={experimentalFeatures} />
         </div>
       )}
     </div>

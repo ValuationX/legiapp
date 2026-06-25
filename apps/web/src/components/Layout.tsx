@@ -34,12 +34,13 @@ const SearchPalette = React.lazy(() =>
   import('@/components/SearchPalette').then((m) => ({ default: m.SearchPalette })),
 );
 
-const NAV = [
+// `exp` items are hidden unless Experimental features are enabled (curated data).
+const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; exp?: boolean }[] = [
   { to: '/', label: 'This Week', icon: LayoutDashboard, end: true },
-  { to: '/foreign-affairs', label: 'Foreign Affairs', icon: Globe, fa: true },
+  { to: '/foreign-affairs', label: 'Foreign Affairs', icon: Globe, exp: true },
   { to: '/bills', label: 'Bills', icon: FileText },
   { to: '/legislators', label: 'Legislators', icon: Users },
-  { to: '/leadership', label: 'Leadership', icon: Crown },
+  { to: '/leadership', label: 'Leadership', icon: Crown, exp: true },
   { to: '/committees', label: 'Committees', icon: Building2 },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/map', label: 'District Map', icon: Map },
@@ -52,8 +53,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { showForeignAffairs } = useSettings();
-  const items = NAV.filter((n) => !n.fa || showForeignAffairs);
+  const { experimentalFeatures } = useSettings();
+  const items = NAV.filter((n) => !n.exp || experimentalFeatures);
   return (
     <>
       <div

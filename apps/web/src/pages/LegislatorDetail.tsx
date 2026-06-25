@@ -18,10 +18,10 @@ export default function LegislatorDetail() {
   const bills = useQuery({ queryKey: ['legislator-bills', id], queryFn: () => api.legislatorBills(id) });
   const votes = useQuery({ queryKey: ['legislator-votes', id], queryFn: () => api.legislatorVotes(id) });
 
-  const { showForeignAffairs } = useSettings();
+  const { experimentalFeatures } = useSettings();
   if (leg.isError) return <ErrorState error={leg.error} />;
   const l = leg.data;
-  const faBills = showForeignAffairs ? (bills.data ?? []).filter((b) => (b.faRegions?.length ?? 0) > 0) : [];
+  const faBills = experimentalFeatures ? (bills.data ?? []).filter((b) => (b.faRegions?.length ?? 0) > 0) : [];
 
   return (
     <div>

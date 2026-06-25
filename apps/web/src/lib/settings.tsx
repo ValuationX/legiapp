@@ -5,15 +5,15 @@ const STORAGE_KEY = 'billaid.settings';
 export type ThemePref = 'light' | 'dark' | 'system';
 
 export interface Settings {
-  /** Show the Ukraine / foreign-affairs layer (tracker nav, profile FA section,
-   *  Ukraine filters, leadership Ukraine column). Default on — it's a Nova Ukraine
-   *  tool — but can be turned off to use Bill Aid as a plain bill tracker. */
-  showForeignAffairs: boolean;
+  /** Unlock experimental, curated-data features (Leadership, the Foreign Affairs
+   *  tracker, and the Calendar dates). Off by default — this data may be incomplete
+   *  or unverified, so it's hidden behind an explicit double-confirm opt-in. */
+  experimentalFeatures: boolean;
   /** Color theme: explicit light/dark, or follow the OS preference. */
   theme: ThemePref;
 }
 
-const DEFAULTS: Settings = { showForeignAffairs: true, theme: 'system' };
+const DEFAULTS: Settings = { experimentalFeatures: false, theme: 'system' };
 
 function load(): Settings {
   try {
@@ -24,8 +24,8 @@ function load(): Settings {
     // wedged theme that can't be cleared without wiping storage).
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return {
-      showForeignAffairs:
-        typeof parsed.showForeignAffairs === 'boolean' ? parsed.showForeignAffairs : DEFAULTS.showForeignAffairs,
+      experimentalFeatures:
+        typeof parsed.experimentalFeatures === 'boolean' ? parsed.experimentalFeatures : DEFAULTS.experimentalFeatures,
       theme:
         parsed.theme === 'light' || parsed.theme === 'dark' || parsed.theme === 'system'
           ? parsed.theme
